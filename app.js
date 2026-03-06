@@ -178,6 +178,22 @@ function importFromText() {
     } catch (err) { alert('無效的代碼'); }
 }
 
+function forceUpdate() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (let registration of registrations) {
+                registration.unregister();
+            }
+            caches.keys().then(names => {
+                for (let name of names) caches.delete(name);
+                window.location.reload(true);
+            });
+        });
+    } else {
+        window.location.reload(true);
+    }
+}
+
 // Initialize
 updateGlobalStats();
 render();

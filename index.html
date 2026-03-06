@@ -87,6 +87,8 @@
                 <button class="secondary-btn" onclick="document.getElementById('fileInput').click()">⬆️ 還原備份檔案</button>
                 <button class="secondary-btn" onclick="copyToClipboardData()">📋 複製 JSON 代碼 (手機方便)</button>
                 <button class="secondary-btn" onclick="importFromText()">📥 輸入代碼還原</button>
+                <button class="secondary-btn" style="background:rgba(99,102,241,0.1)" onclick="forceUpdate()">🔄
+                    檢查更新並強制重整</button>
                 <input type="file" id="fileInput" style="display:none" onchange="importData(event)">
                 <button class="secondary-btn" style="color:#ff4b4b; border-color:#ff4b4b22;"
                     onclick="closeModal()">關閉</button>
