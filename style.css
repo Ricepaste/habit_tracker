@@ -1,5 +1,6 @@
 :root {
   --primary: #c084fc;
+  --primary-light: #e9d5ff;
   --secondary: #fb7185;
   --bg: #030712;
   --card: #111827;
@@ -8,7 +9,6 @@
   --text-dim: #9ca3af;
   --border: rgba(255, 255, 255, 0.05);
   --accent-glow: rgba(192, 132, 252, 0.15);
-  
   --safe-area-bottom: env(safe-area-inset-bottom);
 }
 
@@ -228,7 +228,8 @@ header {
 
 .bar {
   width: 100%;
-  max-width: 24px; /* Stop bars from being too wide on tablet */
+  max-width: 28px;
+  background-color: var(--primary); /* Fallback */
   background: linear-gradient(to top, var(--primary), var(--primary-light));
   border-radius: 6px 6px 2px 2px;
   min-height: 4px;
