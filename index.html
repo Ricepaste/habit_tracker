@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0f172a">
-    <title>HabitFlow | 個人習慣追蹤</title>
-    
+    <meta name="theme-color" content="#0b0f1a">
+    <title>HabitFlow | 成長記錄</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    
+
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon.png">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -21,44 +23,74 @@
     <div class="container">
         <header>
             <h1>HabitFlow</h1>
-            <p id="currentDate"></p>
+            <div class="view-toggle">
+                <button id="viewHabits" class="active" onclick="switchView('habits')">追蹤</button>
+                <button id="viewDash" onclick="switchView('dashboard')">數據庫</button>
+            </div>
         </header>
 
-        <section class="card stats-grid">
-            <div class="stat-item">
-                <div id="statCompletion" class="stat-value">0%</div>
-                <div class="stat-label">今日完成度</div>
+        <!-- Tracker View -->
+        <div id="habitsView">
+            <div class="summary-cards" style="margin-bottom: 24px;">
+                <div class="card stat">
+                    <span class="stat-label">累積達成</span>
+                    <span id="statTotalLogs" class="stat-value">0</span>
+                </div>
+                <div class="card stat">
+                    <span class="stat-label">進行中習慣</span>
+                    <span id="statActiveHabits" class="stat-value">0</span>
+                </div>
             </div>
-            <div class="stat-item">
-                <div id="statTotalHabits" class="stat-value">0</div>
-                <div class="stat-label">追蹤項目</div>
-            </div>
-        </section>
 
-        <section class="card">
-            <div class="add-habit-container">
-                <input type="text" id="habitInput" placeholder="新的好習慣..." autocomplete="off">
-                <button class="add-btn" onclick="addHabit()">新增</button>
+            <div id="habitList" class="habit-list">
+                <!-- Habits will be rendered here -->
             </div>
-        </section>
 
-        <div id="habitList" class="habit-list">
-            <!-- Habits will be rendered here -->
+            <div class="card" style="margin-top: 24px;">
+                <div class="add-box">
+                    <input type="text" id="habitInput" placeholder="想建立什麼樣的自我？" autocomplete="off">
+                    <button class="primary-btn" onclick="addHabit()">新增</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard View -->
+        <div id="dashboardView" style="display: none;">
+            <div class="card heatmap-card">
+                <span class="stat-label">全習慣年度熱力圖</span>
+                <div id="globalHeatmap" class="heatmap-grid">
+                    <!-- Heatmap cells will be rendered here -->
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">
+                    <span>更少</span>
+                    <div style="display: flex; gap: 4px;">
+                        <div class="cell"></div>
+                        <div class="cell lvl-1"></div>
+                        <div class="cell lvl-2"></div>
+                        <div class="cell lvl-3"></div>
+                        <div class="cell lvl-4"></div>
+                    </div>
+                    <span>更多成長</span>
+                </div>
+            </div>
+
+            <div id="habitStatsDetailed" style="margin-top: 24px;">
+                <!-- Detailed stats per habit -->
+            </div>
         </div>
     </div>
 
-    <!-- Navigation/Status indicators could go here -->
-    
     <script src="app.js"></script>
     <script>
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('SW Registered'))
-                    .catch(err => console.log('SW Registration Failed', err));
+        if ('serviceWorker' in navigator)
+        {
+            window.addEventListener('load', () =>
+            {
+                navigator.serviceWorker.register('sw.js').catch(() => { });
             });
         }
     </script>
 </body>
+
 </html>

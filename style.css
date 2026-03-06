@@ -1,15 +1,19 @@
 :root {
-  --primary: #6366f1;
-  --primary-glow: rgba(99, 102, 241, 0.4);
-  --secondary: #10b981;
-  --accent: #f59e0b;
-  --bg: #0f172a;
-  --card-bg: rgba(30, 41, 59, 0.7);
-  --text: #f8fafc;
-  --text-muted: #94a3b8;
-  --border: rgba(255, 255, 255, 0.1);
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --primary: #8b5cf6;
+  --primary-light: #a78bfa;
+  --secondary: #ec4899;
+  --bg: #0b0f1a;
+  --card-bg: rgba(23, 27, 44, 0.8);
+  --text: #f1f5f9;
+  --text-muted: #64748b;
+  --border: rgba(255, 255, 255, 0.08);
+  --glass: rgba(255, 255, 255, 0.03);
+  --success: #10b981;
+  --level-0: #1e293b;
+  --level-1: #4c1d95;
+  --level-2: #7c3aed;
+  --level-3: #a78bfa;
+  --level-4: #ddd6fe;
 }
 
 * {
@@ -20,10 +24,12 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--bg);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%);
   color: var(--text);
-  line-height: 1.5;
   min-height: 100vh;
   padding: 20px;
   display: flex;
@@ -33,108 +39,86 @@ body {
 
 .container {
   width: 100%;
-  max-width: 480px;
+  max-width: 600px;
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
+/* Header & Dashboard Toggle */
 header {
-  text-align: left;
-  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 }
 
 h1 {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 4px;
+  letter-spacing: -0.02em;
 }
 
-header p {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
-/* Glassmorphism Card */
-.card {
+.view-toggle {
+  display: flex;
   background: var(--card-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  padding: 24px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
 }
 
-/* Statistics Section */
-.stats-grid {
+.view-toggle button {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-toggle button.active {
+  background: var(--primary);
+  color: white;
+}
+
+/* Dashboard Summary */
+.summary-cards {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 16px;
 }
 
-.stat-item {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  padding: 16px;
-  text-align: center;
+.card {
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 20px;
 }
 
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--secondary);
+.stat {
+  display: flex;
+  flex-direction: column;
 }
 
 .stat-label {
   font-size: 0.75rem;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 700;
+  margin-bottom: 4px;
 }
 
-/* Add Habit Input */
-.add-habit-container {
-  display: flex;
-  gap: 12px;
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text);
 }
 
-input[type="text"] {
-  flex: 1;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 14px;
-  padding: 12px 16px;
-  color: #fff;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-input[type="text"]:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 4px var(--primary-glow);
-}
-
-button.add-btn {
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 14px;
-  padding: 0 20px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-button.add-btn:active {
-  transform: scale(0.95);
-}
-
-/* Habit List */
+/* Habit Tracker List */
 .habit-list {
   display: flex;
   flex-direction: column;
@@ -142,123 +126,114 @@ button.add-btn:active {
 }
 
 .habit-item {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 18px;
-  padding: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--glass);
+  border: 1px solid var(--border);
+  padding: 18px;
+  border-radius: 20px;
+  transition: transform 0.2s, background 0.2s;
 }
 
-.habit-item.done {
-  border-color: var(--secondary);
-  background: rgba(16, 185, 129, 0.1);
+.habit-item:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.habit-info {
-  display: flex;
-  flex-direction: column;
+.habit-main {
+  flex: 1;
 }
 
-.habit-name {
+.habit-title {
   font-weight: 600;
   font-size: 1.1rem;
+  display: block;
 }
 
-.habit-item.done .habit-name {
-  text-decoration: line-through;
-  opacity: 0.6;
-}
-
-.habit-meta {
+.habit-sub {
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.habit-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
-.streak-badge {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-/* Custom Checkbox */
-.checkbox-container {
-  display: block;
-  position: relative;
-  width: 32px;
-  height: 32px;
+button.log-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  font-size: 1.2rem;
+  font-weight: bold;
   cursor: pointer;
+  transition: transform 0.1s;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
-.checkbox-container input {
-  position: absolute;
-  opacity: 0;
-  cursor: pointer;
-  height: 0;
-  width: 0;
+button.log-btn:active {
+  transform: scale(0.9);
 }
 
-.checkmark {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 32px;
-  width: 32px;
-  background-color: var(--glass-bg);
-  border: 2px solid var(--glass-border);
-  border-radius: 50%;
-  transition: all 0.2s ease;
+/* Heatmap Section */
+.heatmap-card {
+  overflow-x: auto;
 }
 
-.checkbox-container:hover input ~ .checkmark {
-  border-color: var(--primary);
+.heatmap-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 12px);
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 10px 0;
 }
 
-.checkbox-container input:checked ~ .checkmark {
-  background-color: var(--secondary);
-  border-color: var(--secondary);
-}
-
-.checkmark:after {
-  content: "";
-  position: absolute;
-  display: none;
-  left: 11px;
-  top: 6px;
-  width: 6px;
+.cell {
+  width: 12px;
   height: 12px;
-  border: solid white;
-  border-width: 0 2.5px 2.5px 0;
-  transform: rotate(45deg);
+  border-radius: 2px;
+  background: var(--level-0);
 }
 
-.checkbox-container input:checked ~ .checkmark:after {
-  display: block;
+.cell.lvl-1 { background: var(--level-1); }
+.cell.lvl-2 { background: var(--level-2); }
+.cell.lvl-3 { background: var(--level-3); }
+.cell.lvl-4 { background: var(--level-4); }
+
+/* Add Dialog */
+.add-box {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
 }
 
-/* Empty State */
-.empty-state {
-  text-align: center;
-  padding: 40px 0;
-  color: var(--text-muted);
+#habitInput {
+  flex: 1;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  color: white;
+  outline: none;
 }
 
-/* Animations */
-@keyframes slideIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+button.primary-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0 20px;
+  border-radius: 14px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.habit-item {
-  animation: slideIn 0.3s ease forwards;
-}
-
-@media (max-width: 400px) {
-  .container {
-    padding: 10px;
+/* Responsive Extensions */
+@media (max-width: 480px) {
+  .summary-cards {
+    grid-template-columns: 1fr;
   }
 }
