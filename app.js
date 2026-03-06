@@ -3,8 +3,10 @@
  * Evolution: Time-stamped logs for precise tracking, Undo support, and Advanced Analytics.
  */
 
+const STORAGE_KEY = "habitFlowProData";
+
 // 1. Data Architecture
-let state = JSON.parse(localStorage.getItem("habitFlowProData")) || {
+let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
     habits: [],
     settings: { theme: 'dark' }
 };
@@ -12,30 +14,44 @@ let state = JSON.parse(localStorage.getItem("habitFlowProData")) || {
 // Migration: If user has old data format, convert it
 function migrate() {
     const oldKey = "habitFlowData";
-    const oldData = JSON.parse(localStorage.getItem(oldKey));
-    if (oldData && oldData.habits && state.habits.length === 0) {
-        state.habits = oldData.habits.map(h => {
-            const timestamps = [];
-            // Convert old daily count logs { "YYYY-MM-DD": count } to timestamps
-            for (const [date, count] of Object.entries(h.logs || {})) {
-                for (let i = 0; i < count; i++) {
-                    timestamps.push(new Date(date).getTime());
-                }
+    const oldDataString = localStorage.getItem(oldKey);
+    
+    if (oldDataString) {
+        try {
+            const oldData = JSON.parse(oldDataString);
+            if (oldData && oldData.habits && state.habits.length === 0) {
+                state.habits = oldData.habits.map(h => {
+                    const timestamps = [];
+                    // Convert old daily count logs { "YYYY-MM-DD": count } to timestamps
+                    if (h.logs && !Array.isArray(h.logs)) {
+                        for (const [date, count] of Object.entries(h.logs)) {
+                            for (let i = 0; i < count; i++) {
+                                timestamps.push(new Date(date).getTime());
+                            }
+                        }
+                    } else if (Array.isArray(h.logs)) {
+                        return h; // Already migrated
+                    }
+                    
+                    return {
+                        id: h.id || Date.now() + Math.random(),
+                        name: h.name,
+                        logs: timestamps, // Now an array of timestamps!
+                        createdAt: h.createdAt || new Date().toISOString()
+                    };
+                });
+                // After migration, clear old and save new
+                localStorage.removeItem(oldKey);
+                save();
             }
-            return {
-                id: h.id || Date.now() + Math.random(),
-                name: h.name,
-                logs: timestamps, // Now an array of timestamps!
-                createdAt: h.createdAt || new Date().toISOString()
-            };
-        });
-        localStorage.removeItem(oldKey);
-        save();
+        } catch (e) {
+            console.error("Migration failed", e);
+        }
     }
 }
 
 function save() {
-    localStorage.setItem("habitFlowProProData", JSON.stringify(state)); // New key for the pro version
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 // 2. Action Logic
@@ -118,10 +134,11 @@ function renderHabits() {
         return;
     }
 
-    const today = new Date().setHours(0,0,0,0);
+    const todayStart = new Date().setHours(0,0,0,0);
+    const todayEnd = new Date().setHours(23,59,59,999);
 
     state.habits.forEach(h => {
-        const todayCount = h.logs.filter(ts => new Date(ts).setHours(0,0,0,0) === today).length;
+        const todayCount = h.logs.filter(ts => ts >= todayStart && ts <= todayEnd).length;
         const totalCount = h.logs.length;
         
         const card = document.createElement("div");
@@ -235,6 +252,7 @@ function openSheet(id) {
 }
 
 function closeSheets() {
+    document.getElementById("sheet-overlay").classList.remove("remove"); // Close fix
     document.getElementById("sheet-overlay").classList.remove("open");
     document.querySelectorAll(".sheet").forEach(s => s.classList.remove("open"));
 }
@@ -355,6 +373,51 @@ function showUndoBanner() {
 
 function hideUndoBanner() {
     document.getElementById("undo-banner").classList.remove("show");
+}
+
+// Tools for data safety
+function exportData() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `habitflow-pro-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function copyToClipboardData() {
+    const text = JSON.stringify(state);
+    navigator.clipboard.writeText(text).then(() => alert('JSON 代碼已複製！'));
+}
+
+function importFromText() {
+    const text = prompt('請貼上備份 JSON 代碼：');
+    if (!text) return;
+    try {
+        const imported = JSON.parse(text);
+        if (imported.habits) {
+            state = imported;
+            save();
+            renderHabits();
+            closeSheets();
+            alert('還原成功！');
+        }
+    } catch (err) { alert('無效的代碼'); }
+}
+
+function forceUpdate() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (let registration of registrations) registration.unregister();
+            caches.keys().then(names => {
+                for (let name of names) caches.delete(name);
+                window.location.reload(true);
+            });
+        });
+    } else {
+        window.location.reload(true);
+    }
 }
 
 // Initialize
