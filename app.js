@@ -181,27 +181,35 @@ function renderAnalytics() {
     
     const dayLabels = ['日', '一', '二', '三', '四', '五', '六'];
     const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const counts = Array(7).fill(0);
+    const ONE_DAY = 1000 * 60 * 60 * 24;
     
     state.habits.forEach(h => {
         h.logs.forEach(ts => {
-            const d = new Date(ts);
-            const diff = Math.floor((now - d) / (1000 * 60 * 60 * 24));
-            if (diff >= 0 && diff < 7) {
-                counts[6 - diff]++;
+            const logDate = new Date(ts);
+            const logDayStart = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate()).getTime();
+            const dayDiff = Math.floor((todayStart - logDayStart) / ONE_DAY);
+            
+            if (dayDiff >= 0 && dayDiff < 7) {
+                counts[6 - dayDiff]++;
             }
         });
     });
 
     const max = Math.max(...counts, 1);
     for (let i = 0; i < 7; i++) {
-        const currentDayIndex = (now.getDay() - (6 - i) + 7) % 7;
-        const height = (counts[i] / max) * 100;
+        // Calculate the actual label for the day
+        const labelDate = new Date(todayStart - (6 - i) * ONE_DAY);
+        const label = dayLabels[labelDate.getDay()];
+        
+        const height = Math.max((counts[i] / max) * 100, 2); // Ensure at least 2% height for visibility
         const barWrap = document.createElement("div");
         barWrap.className = "bar-wrap";
         barWrap.innerHTML = `
+            <div style="font-size:0.7rem; color:var(--primary); margin-bottom:4px; opacity:${counts[i]>0?1:0}">${counts[i]}</div>
             <div class="bar" style="height: ${height}%"></div>
-            <div class="bar-label">${dayLabels[currentDayIndex]}</div>
+            <div class="bar-label">${label}</div>
         `;
         barGrid.appendChild(barWrap);
     }
