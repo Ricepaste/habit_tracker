@@ -49,7 +49,8 @@ header {
   font-weight: 900;
   background: linear-gradient(to right, #fff, var(--text-dim));
   -webkit-background-clip: text;
-  -webkit-background-fill-color: transparent;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .date-today {
@@ -209,25 +210,29 @@ header {
 .bar-grid {
   display: flex;
   align-items: flex-end;
-  height: 120px;
-  gap: 8px;
-  margin-top: 20px;
+  height: 160px; /* Increased height for better visibility */
+  gap: 12px;
+  margin-top: 30px;
+  padding-bottom: 20px;
 }
 
 .bar-wrap {
   flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end; /* Push bar to bottom */
   align-items: center;
+  height: 100%; /* Anchor for percentage height */
   gap: 8px;
 }
 
 .bar {
   width: 100%;
-  background: var(--primary);
+  max-width: 24px; /* Stop bars from being too wide on tablet */
+  background: linear-gradient(to top, var(--primary), var(--primary-light));
   border-radius: 6px 6px 2px 2px;
   min-height: 4px;
-  transition: height 1s ease;
+  transition: height 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .bar-label {
