@@ -288,6 +288,28 @@ input[type="text"] {
     font-size: 1rem;
 }
 
+.btn-full {
+    width: 100%;
+    padding: 18px;
+    border-radius: 18px;
+    font-weight: 700;
+    font-size: 1rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-full:active {
+    transform: scale(0.96);
+    filter: brightness(1.2);
+}
+
+.primary-btn {
+    background: linear-gradient(135deg, var(--primary), #818cf8);
+    color: white;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
 /* Log History List */
 .log-history {
     max-height: 250px;
