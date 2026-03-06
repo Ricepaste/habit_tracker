@@ -7,92 +7,104 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0b0f1a">
-    <title>HabitFlow | 數據安全版</title>
+    <meta name="theme-color" content="#030712">
+    <title>HabitFlow Pro</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
 </head>
 
 <body>
     <div class="container">
-        <header>
-            <h1>HabitFlow</h1>
-            <div class="nav-actions">
-                <button class="icon-btn" onclick="toggleModal('backupModal')" title="備份與還原">💾</button>
-                <div class="view-toggle">
-                    <button id="viewHabits" class="active" onclick="switchView('habits')">追蹤</button>
-                    <button id="viewDash" onclick="switchView('dashboard')">數據庫</button>
+        <!-- View: Habits -->
+        <div id="view-habits" class="view">
+            <header>
+                <div class="brand">
+                    <h1>HabitFlow</h1>
+                    <div id="display-date" class="date-today">--月--日 星期--</div>
                 </div>
-            </div>
-        </header>
+                <button class="btn-edit" onclick="openSheet('sheet-backup')">💾</button>
+            </header>
 
-        <!-- Tracker View -->
-        <div id="habitsView">
-            <div class="summary-cards" style="margin-bottom: 24px;">
-                <div class="card">
-                    <span class="stat-label">累積達成</span>
-                    <div id="statTotalLogs" class="stat-value">0</div>
-                </div>
-                <div class="card">
-                    <span class="stat-label">進行中習慣</span>
-                    <div id="statActiveHabits" class="stat-value">0</div>
-                </div>
+            <div id="habit-grid" class="habit-grid">
+                <!-- Habit cards will be rendered here -->
             </div>
 
-            <div id="habitList" class="habit-list"></div>
-
-            <div class="card" style="margin-top: 24px;">
-                <div class="add-box">
-                    <input type="text" id="habitInput" placeholder="新的成長方向..." autocomplete="off">
-                    <button class="primary-btn" onclick="addHabit()">新增</button>
-                </div>
-            </div>
+            <button class="btn-full primary-btn"
+                style="margin-top: 32px; background: var(--card-light); color: var(--text-dim);"
+                onclick="openSheet('sheet-add')">+ 新增成長項目</button>
         </div>
 
-        <!-- Dashboard View -->
-        <div id="dashboardView" style="display: none;">
-            <div class="card heatmap-card">
-                <span class="stat-label">年度熱力圖 (全項目)</span>
-                <div id="globalHeatmap" class="heatmap-grid"></div>
-                <div
-                    style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">
-                    <span>更少</span>
-                    <div style="display: flex; gap: 4px;">
-                        <div class="cell"></div>
-                        <div class="cell lvl-1"></div>
-                        <div class="cell lvl-2"></div>
-                        <div class="cell lvl-3"></div>
-                        <div class="cell lvl-4"></div>
-                    </div>
-                    <span>更多</span>
+        <!-- View: Analytics -->
+        <div id="view-analytics" class="view" style="display: none;">
+            <header>
+                <div class="brand">
+                    <h1>成長分析</h1>
+                    <div class="date-today">數據庫即時分析</div>
                 </div>
+            </header>
+
+            <div id="analytics-content" class="analytics-section">
+                <!-- Heatmaps and Bar Charts will be rendered here -->
             </div>
-            <div id="habitStatsDetailed" style="margin-top: 24px;"></div>
         </div>
     </div>
 
-    <!-- Backup Modal -->
-    <div id="backupModal" class="overlay" onclick="closeModal(event)">
-        <div class="modal" onclick="event.stopPropagation()">
-            <h2>管理資料安全</h2>
-            <p>即使瀏覽器清除快取，你也可以透過備份檔案快速找回所有成長記錄。</p>
-            <div class="btn-group">
-                <button class="primary-btn" style="padding:15px;" onclick="exportData()">⬇️ 下載備份 (.json)</button>
-                <button class="secondary-btn" onclick="document.getElementById('fileInput').click()">⬆️ 還原備份檔案</button>
-                <button class="secondary-btn" onclick="copyToClipboardData()">📋 複製 JSON 代碼 (手機方便)</button>
-                <button class="secondary-btn" onclick="importFromText()">📥 輸入代碼還原</button>
-                <button class="secondary-btn" style="background:rgba(99,102,241,0.1)" onclick="forceUpdate()">🔄
-                    檢查更新並強制重整</button>
-                <input type="file" id="fileInput" style="display:none" onchange="importData(event)">
-                <button class="secondary-btn" style="color:#ff4b4b; border-color:#ff4b4b22;"
-                    onclick="closeModal()">關閉</button>
-            </div>
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="javascript:void(0)" class="nav-item active" onclick="navigate('habits', this)">
+            <span class="nav-icon">🎯</span>
+            <span>追蹤</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="navigate('analytics', this)">
+            <span class="nav-icon">📊</span>
+            <span>分析</span>
+        </a>
+    </nav>
+
+    <!-- UI Components: Undo Banner -->
+    <div id="undo-banner" class="undo-banner">
+        <span>已紀錄成功！</span>
+        <button onclick="undoLastLog()"
+            style="background: white; color: #10b981; border: none; padding: 4px 12px; border-radius: 8px; font-weight: 700;">復原</button>
+    </div>
+
+    <!-- Modals (Sheets) -->
+    <div id="sheet-overlay" class="sheet-overlay" onclick="closeSheets()"></div>
+
+    <!-- Sheet: Add Habit -->
+    <div id="sheet-add" class="sheet">
+        <h2>新的開始</h2>
+        <p style="color: var(--text-dim); margin-bottom: 24px;">定義一個你想持續累積的行為。</p>
+        <div class="input-group">
+            <label>項目名稱</label>
+            <input type="text" id="input-habit-name" placeholder="例如：每日閱讀、深蹲..." autocomplete="off">
+        </div>
+        <button class="btn-full btn-log" onclick="createNewHabit()">建立成長項目</button>
+    </div>
+
+    <!-- Sheet: Habit Details -->
+    <div id="sheet-details" class="sheet">
+        <div id="details-content">
+            <!-- Habit breakdown, specific history, delete button -->
+        </div>
+    </div>
+
+    <!-- Sheet: Backup -->
+    <div id="sheet-backup" class="sheet">
+        <h2>資料管理</h2>
+        <p style="color: var(--text-dim); margin-bottom: 24px;">保護你的成長紀錄。</p>
+        <div class="btn-group" style="display:flex; flex-direction:column; gap:12px;">
+            <button class="btn-full" style="background: var(--card-light); color: white;" onclick="exportData()">⬇️
+                匯出備份檔案</button>
+            <button class="btn-full" style="background: var(--card-light); color: white;"
+                onclick="copyToClipboardData()">📋 複製代碼模式</button>
+            <button class="btn-full" style="background: var(--card-light); color: white;" onclick="importFromText()">📥
+                輸入代碼還原</button>
+            <button class="btn-full" style="background: #ef444422; color: #ef4444;" onclick="closeSheets()">取消</button>
         </div>
     </div>
 

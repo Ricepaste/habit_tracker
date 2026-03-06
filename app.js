@@ -1,199 +1,293 @@
-// 1. Data Management
-let data = JSON.parse(localStorage.getItem("habitFlowData")) || { habits: [] };
+/**
+ * HabitFlow Pro - Core Engine
+ * Evolution: Time-stamped logs for precise tracking, Undo support, and Advanced Analytics.
+ */
 
-// Try to request persistent storage (Prevents browser from clearing data automatically)
-if (navigator.storage && navigator.storage.persist) {
-    navigator.storage.persist().then(persistent => {
-        if (persistent) console.log("Storage will not be cleared except by explicit user action");
-    });
+// 1. Data Architecture
+let state = JSON.parse(localStorage.getItem("habitFlowProData")) || {
+    habits: [],
+    settings: { theme: 'dark' }
+};
+
+// Migration: If user has old data format, convert it
+function migrate() {
+    const oldKey = "habitFlowData";
+    const oldData = JSON.parse(localStorage.getItem(oldKey));
+    if (oldData && oldData.habits && state.habits.length === 0) {
+        state.habits = oldData.habits.map(h => {
+            const timestamps = [];
+            // Convert old daily count logs { "YYYY-MM-DD": count } to timestamps
+            for (const [date, count] of Object.entries(h.logs || {})) {
+                for (let i = 0; i < count; i++) {
+                    timestamps.push(new Date(date).getTime());
+                }
+            }
+            return {
+                id: h.id || Date.now() + Math.random(),
+                name: h.name,
+                logs: timestamps, // Now an array of timestamps!
+                createdAt: h.createdAt || new Date().toISOString()
+            };
+        });
+        localStorage.removeItem(oldKey);
+        save();
+    }
 }
 
 function save() {
-    localStorage.setItem("habitFlowData", JSON.stringify(data));
-    updateGlobalStats();
+    localStorage.setItem("habitFlowProProData", JSON.stringify(state)); // New key for the pro version
 }
 
-// 2. Core Actions
-function addHabit() {
-    const input = document.getElementById("habitInput");
-    const name = input.value.trim();
+// 2. Action Logic
+let lastAction = null;
+
+function logHabit(id) {
+    const habit = state.habits.find(h => h.id === id);
+    if (!habit) return;
+    
+    const now = Date.now();
+    habit.logs.push(now);
+    lastAction = { type: 'log', habitId: id, timestamp: now };
+    
+    save();
+    renderHabits();
+    showUndoBanner();
+}
+
+function undoLastLog() {
+    if (!lastAction) return;
+    const habit = state.habits.find(h => h.id === lastAction.habitId);
+    if (habit) {
+        const index = habit.logs.indexOf(lastAction.timestamp);
+        if (index > -1) {
+            habit.logs.splice(index, 1);
+            save();
+            renderHabits();
+            hideUndoBanner();
+            lastAction = null;
+        }
+    }
+}
+
+function createNewHabit() {
+    const name = document.getElementById("input-habit-name").value.trim();
     if (!name) return;
-    data.habits.push({ id: Date.now(), name, logs: {}, createdAt: new Date().toISOString() });
-    input.value = "";
+    
+    state.habits.push({
+        id: Date.now(),
+        name: name,
+        logs: [],
+        createdAt: new Date().toISOString()
+    });
+    
+    document.getElementById("input-habit-name").value = "";
     save();
-    render();
-}
-
-function toggleHabit(id) {
-    const h = data.habits.find(x => x.id === id);
-    if (!h) return;
-    const d = new Date().toISOString().split("T")[0];
-    h.logs[d] = (h.logs[d] || 0) + 1;
-    save();
-    render();
+    closeSheets();
+    renderHabits();
 }
 
 function deleteHabit(id) {
-    if (confirm('確定移除？紀錄將永久刪除。')) {
-        data.habits = data.habits.filter(x => x.id !== id);
+    if (confirm("確定要永久刪除此項目與所有紀錄嗎？")) {
+        state.habits = state.habits.filter(h => h.id !== id);
         save();
-        render();
+        closeSheets();
+        renderHabits();
     }
 }
 
 // 3. View Management
-function switchView(v) {
-    document.getElementById("habitsView").style.display = v === 'habits' ? 'block' : 'none';
-    document.getElementById("dashboardView").style.display = v === 'dashboard' ? 'block' : 'none';
-    document.getElementById("viewHabits").classList.toggle('active', v === 'habits');
-    document.getElementById("viewDash").classList.toggle('active', v === 'dashboard');
-    v === 'habits' ? render() : renderDashboard();
+function navigate(view, el) {
+    document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+    document.getElementById(`view-${view}`).style.display = 'block';
+    
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+    
+    if (view === 'habits') renderHabits();
+    if (view === 'analytics') renderAnalytics();
 }
 
-function render() {
-    const list = document.getElementById("habitList");
-    if (!list) return;
-    list.innerHTML = data.habits.length ? "" : '<div style="text-align:center; padding:40px; color:var(--text-muted);">點擊下方新增成長。</div>';
+// 4. Rendering
+function renderHabits() {
+    const grid = document.getElementById("habit-grid");
+    if (!grid) return;
+    grid.innerHTML = "";
     
-    data.habits.forEach(h => {
-        const div = document.createElement("div");
-        div.className = "habit-item";
-        const today = new Date().toISOString().split("T")[0];
-        const count = h.logs[today] || 0;
-        const total = Object.values(h.logs).reduce((a,b)=>a+b, 0);
-        div.innerHTML = `
-            <div class="habit-main">
-                <span class="habit-title">${h.name}</span>
-                <span class="habit-sub">今日: ${count} | 總計: ${total}</span>
+    if (state.habits.length === 0) {
+        grid.innerHTML = '<div style="text-align:center; padding:60px; color:var(--text-dim);">點擊下方按鈕開始你的第一個成長計畫。</div>';
+        return;
+    }
+
+    const today = new Date().setHours(0,0,0,0);
+
+    state.habits.forEach(h => {
+        const todayCount = h.logs.filter(ts => new Date(ts).setHours(0,0,0,0) === today).length;
+        const totalCount = h.logs.length;
+        
+        const card = document.createElement("div");
+        card.className = "habit-card";
+        card.innerHTML = `
+            <div class="habit-info" onclick="openHabitDetails(${h.id})">
+                <div>
+                    <div class="habit-name">${h.name}</div>
+                    <div class="habit-stats-mini">今日累積 ${todayCount} | 總計 ${totalCount}</div>
+                </div>
+                <div style="font-size: 1.2rem;">➔</div>
             </div>
-            <div class="habit-actions">
-                <button onclick="deleteHabit(${h.id})" style="background:none; border:none; color:var(--text-muted); cursor:pointer;">×</button>
-                <button class="log-btn" onclick="toggleHabit(${h.id})">+</button>
+            <div class="action-area">
+                <button class="btn-log" onclick="event.stopPropagation(); logHabit(${h.id})">
+                    <span>紀錄成就</span>
+                    <span style="opacity:0.6; font-size: 0.8rem;">+1</span>
+                </button>
             </div>
         `;
-        list.appendChild(div);
+        grid.appendChild(card);
     });
 }
 
-function renderDashboard() {
-    renderGlobalHeatmap();
-    renderDetailedStats();
-}
-
-function renderGlobalHeatmap() {
-    const grid = document.getElementById("globalHeatmap");
-    grid.innerHTML = "";
-    const logs = {};
-    data.habits.forEach(h => Object.entries(h.logs).forEach(([d,c]) => logs[d] = (logs[d]||0)+c));
-    
-    const now = new Date();
-    for(let i=140; i>=0; i--) {
-        const d = new Date(); d.setDate(now.getDate()-i);
-        const s = d.toISOString().split("T")[0];
-        const c = logs[s] || 0;
-        const cell = document.createElement("div");
-        cell.className = "cell";
-        if (c > 0) cell.classList.add(`lvl-${Math.min(4, Math.ceil(c/2))}`);
-        grid.appendChild(cell);
-    }
-}
-
-function renderDetailedStats() {
-    const container = document.getElementById("habitStatsDetailed");
+function renderAnalytics() {
+    const container = document.getElementById("analytics-content");
     container.innerHTML = "";
-    data.habits.forEach(h => {
-        const t = Object.values(h.logs).reduce((a,b)=>a+b, 0);
-        const card = document.createElement("div");
-        card.className = "card";
-        card.style.marginBottom = "12px";
-        card.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;">
-            <span>${h.name}</span><strong>${t} 次</strong>
-        </div>`;
-        container.appendChild(card);
+    
+    if (state.habits.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:60px; color:var(--text-dim);">尚未有足夠數據進行分析。</div>';
+        return;
+    }
+
+    // A. Weekly Frequency Chart (Last 7 Days)
+    const weeklyCard = document.createElement("div");
+    weeklyCard.className = "chart-card";
+    weeklyCard.innerHTML = `<h3>週成長趨勢</h3><p style="color:var(--text-dim); font-size:0.8rem;">過去七天的成就累積</p>`;
+    
+    const barGrid = document.createElement("div");
+    barGrid.className = "bar-grid";
+    
+    const dayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+    const now = new Date();
+    const counts = Array(7).fill(0);
+    
+    state.habits.forEach(h => {
+        h.logs.forEach(ts => {
+            const d = new Date(ts);
+            const diff = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+            if (diff >= 0 && diff < 7) {
+                counts[6 - diff]++;
+            }
+        });
+    });
+
+    const max = Math.max(...counts, 1);
+    for (let i = 0; i < 7; i++) {
+        const currentDayIndex = (now.getDay() - (6 - i) + 7) % 7;
+        const height = (counts[i] / max) * 100;
+        const barWrap = document.createElement("div");
+        barWrap.className = "bar-wrap";
+        barWrap.innerHTML = `
+            <div class="bar" style="height: ${height}%"></div>
+            <div class="bar-label">${dayLabels[currentDayIndex]}</div>
+        `;
+        barGrid.appendChild(barWrap);
+    }
+    weeklyCard.appendChild(barGrid);
+    container.appendChild(weeklyCard);
+
+    // B. Specific Habit Breakdown
+    state.habits.forEach(h => {
+        const hCard = document.createElement("div");
+        hCard.className = "chart-card";
+        const total = h.logs.length;
+        const activeDays = new Set(h.logs.map(ts => new Date(ts).toISOString().split('T')[0])).size;
+        
+        hCard.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700;">${h.name}</span>
+                <span style="color:var(--primary); font-weight:800;">${total} 次</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 8px;">
+                平均紀錄頻率: ${(total / Math.max(1, activeDays)).toFixed(1)} 次/天
+            </div>
+            <div style="display:flex; gap:4px; margin-top:12px;">
+                ${renderMiniHeatmap(h.logs)}
+            </div>
+        `;
+        container.appendChild(hCard);
     });
 }
 
-function updateGlobalStats() {
-    let total = 0;
-    data.habits.forEach(h => Object.values(h.logs).forEach(c => total += c));
-    document.getElementById("statTotalLogs").innerText = total;
-    document.getElementById("statActiveHabits").innerText = data.habits.length;
-}
-
-// 4. Safety & Backup Functions
-function toggleModal(id) {
-    document.getElementById(id).style.display = 'flex';
-}
-
-function closeModal(e) {
-    document.querySelectorAll('.overlay').forEach(el => el.style.display = 'none');
-}
-
-function exportData() {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `habitflow-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-function importData(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        try {
-            const imported = JSON.parse(event.target.result);
-            if (imported.habits) {
-                data = imported;
-                save();
-                render();
-                closeModal();
-                alert('還原成功！');
-            }
-        } catch (err) { alert('無效的備份檔案'); }
-    };
-    reader.readAsText(file);
-}
-
-function copyToClipboardData() {
-    const text = JSON.stringify(data);
-    navigator.clipboard.writeText(text).then(() => alert('JSON 代碼已複製！請妥善保存至你的雲端筆記。'));
-}
-
-function importFromText() {
-    const text = prompt('請貼上之前備份的 JSON 代碼：');
-    if (!text) return;
-    try {
-        const imported = JSON.parse(text);
-        if (imported.habits) {
-            data = imported;
-            save();
-            render();
-            closeModal();
-            alert('還原成功！');
-        }
-    } catch (err) { alert('無效的代碼'); }
-}
-
-function forceUpdate() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-            for (let registration of registrations) {
-                registration.unregister();
-            }
-            caches.keys().then(names => {
-                for (let name of names) caches.delete(name);
-                window.location.reload(true);
-            });
-        });
-    } else {
-        window.location.reload(true);
+function renderMiniHeatmap(logs) {
+    const logSet = new Set(logs.map(ts => new Date(ts).toISOString().split('T')[0]));
+    let html = "";
+    const now = new Date();
+    for (let i = 28; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(now.getDate() - i);
+        const s = d.toISOString().split('T')[0];
+        const isActive = logSet.has(s);
+        html += `<div style="width:10px; height:10px; border-radius:2px; background: ${isActive ? 'var(--primary)' : 'var(--card-light)'};"></div>`;
     }
+    return html;
+}
+
+// 5. UI Helpers
+function openSheet(id) {
+    document.getElementById("sheet-overlay").classList.add("open");
+    document.getElementById(id).classList.add("open");
+}
+
+function closeSheets() {
+    document.getElementById("sheet-overlay").classList.remove("open");
+    document.querySelectorAll(".sheet").forEach(s => s.classList.remove("open"));
+}
+
+function openHabitDetails(id) {
+    const h = state.habits.find(x => x.id === id);
+    if (!h) return;
+    
+    const content = document.getElementById("details-content");
+    content.innerHTML = `
+        <h2 style="margin-bottom:8px;">${h.name}</h2>
+        <p style="color:var(--text-dim); margin-bottom:24px;">紀錄於 ${new Date(h.createdAt).toLocaleDateString()}</p>
+        
+        <div class="input-group">
+            <label>管理行為</label>
+            <button class="btn-full" style="background:#ef444422; color:#ef4444;" onclick="deleteHabit(${h.id})">刪除此成長項目</button>
+        </div>
+        
+        <button class="btn-full" style="background:var(--card-light); color:white; margin-top:12px;" onclick="closeSheets()">關閉</button>
+    `;
+    openSheet("sheet-details");
+}
+
+function showUndoBanner() {
+    const banner = document.getElementById("undo-banner");
+    banner.classList.add("show");
+    setTimeout(hideUndoBanner, 5000);
+}
+
+function hideUndoBanner() {
+    document.getElementById("undo-banner").classList.remove("show");
 }
 
 // Initialize
-updateGlobalStats();
-render();
+const dateEl = document.getElementById("display-date");
+if (dateEl) {
+    const options = { month: 'long', day: 'numeric', weekday: 'long' };
+    dateEl.innerText = new Date().toLocaleDateString('zh-TW', options);
+}
+
+migrate();
+renderHabits();
+
+// PWA: Automatic Update Reload
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    window.location.reload();
+                }
+            });
+        });
+    });
+}
