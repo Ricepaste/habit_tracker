@@ -59,6 +59,12 @@ h1 {
   letter-spacing: -0.02em;
 }
 
+.nav-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .view-toggle {
   display: flex;
   background: var(--card-bg);
@@ -76,7 +82,6 @@ h1 {
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .view-toggle button.active {
@@ -84,7 +89,22 @@ h1 {
   color: white;
 }
 
-/* Dashboard Summary */
+/* Control Buttons (Backup) */
+.icon-btn {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+/* Summary Cards */
 .summary-cards {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -97,11 +117,7 @@ h1 {
   border: 1px solid var(--border);
   border-radius: 24px;
   padding: 20px;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
+  position: relative;
 }
 
 .stat-label {
@@ -133,11 +149,6 @@ h1 {
   border: 1px solid var(--border);
   padding: 18px;
   border-radius: 20px;
-  transition: transform 0.2s, background 0.2s;
-}
-
-.habit-item:hover {
-  background: rgba(255, 255, 255, 0.05);
 }
 
 .habit-main {
@@ -147,7 +158,6 @@ h1 {
 .habit-title {
   font-weight: 600;
   font-size: 1.1rem;
-  display: block;
 }
 
 .habit-sub {
@@ -171,12 +181,6 @@ button.log-btn {
   font-size: 1.2rem;
   font-weight: bold;
   cursor: pointer;
-  transition: transform 0.1s;
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-}
-
-button.log-btn:active {
-  transform: scale(0.9);
 }
 
 /* Heatmap Section */
@@ -208,7 +212,6 @@ button.log-btn:active {
 .add-box {
   display: flex;
   gap: 10px;
-  margin-top: 10px;
 }
 
 #habitInput {
@@ -231,9 +234,51 @@ button.primary-btn {
   cursor: pointer;
 }
 
-/* Responsive Extensions */
+/* Modal / Backup Overly */
+.overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(5px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+}
+
+.modal {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 24px;
+    border-radius: 24px;
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal h2 { font-size: 1.2rem; margin-bottom: 8px; }
+.modal p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px; }
+
+.btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.secondary-btn {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px;
+    border-radius: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+}
+
 @media (max-width: 480px) {
-  .summary-cards {
-    grid-template-columns: 1fr;
-  }
+  .summary-cards { grid-template-columns: 1fr; }
 }

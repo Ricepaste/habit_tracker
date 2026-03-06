@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0b0f1a">
-    <title>HabitFlow | 成長記錄</title>
+    <title>HabitFlow | 數據安全版</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,32 +23,33 @@
     <div class="container">
         <header>
             <h1>HabitFlow</h1>
-            <div class="view-toggle">
-                <button id="viewHabits" class="active" onclick="switchView('habits')">追蹤</button>
-                <button id="viewDash" onclick="switchView('dashboard')">數據庫</button>
+            <div class="nav-actions">
+                <button class="icon-btn" onclick="toggleModal('backupModal')" title="備份與還原">💾</button>
+                <div class="view-toggle">
+                    <button id="viewHabits" class="active" onclick="switchView('habits')">追蹤</button>
+                    <button id="viewDash" onclick="switchView('dashboard')">數據庫</button>
+                </div>
             </div>
         </header>
 
         <!-- Tracker View -->
         <div id="habitsView">
             <div class="summary-cards" style="margin-bottom: 24px;">
-                <div class="card stat">
+                <div class="card">
                     <span class="stat-label">累積達成</span>
-                    <span id="statTotalLogs" class="stat-value">0</span>
+                    <div id="statTotalLogs" class="stat-value">0</div>
                 </div>
-                <div class="card stat">
+                <div class="card">
                     <span class="stat-label">進行中習慣</span>
-                    <span id="statActiveHabits" class="stat-value">0</span>
+                    <div id="statActiveHabits" class="stat-value">0</div>
                 </div>
             </div>
 
-            <div id="habitList" class="habit-list">
-                <!-- Habits will be rendered here -->
-            </div>
+            <div id="habitList" class="habit-list"></div>
 
             <div class="card" style="margin-top: 24px;">
                 <div class="add-box">
-                    <input type="text" id="habitInput" placeholder="想建立什麼樣的自我？" autocomplete="off">
+                    <input type="text" id="habitInput" placeholder="新的成長方向..." autocomplete="off">
                     <button class="primary-btn" onclick="addHabit()">新增</button>
                 </div>
             </div>
@@ -57,10 +58,8 @@
         <!-- Dashboard View -->
         <div id="dashboardView" style="display: none;">
             <div class="card heatmap-card">
-                <span class="stat-label">全習慣年度熱力圖</span>
-                <div id="globalHeatmap" class="heatmap-grid">
-                    <!-- Heatmap cells will be rendered here -->
-                </div>
+                <span class="stat-label">年度熱力圖 (全項目)</span>
+                <div id="globalHeatmap" class="heatmap-grid"></div>
                 <div
                     style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">
                     <span>更少</span>
@@ -71,26 +70,31 @@
                         <div class="cell lvl-3"></div>
                         <div class="cell lvl-4"></div>
                     </div>
-                    <span>更多成長</span>
+                    <span>更多</span>
                 </div>
             </div>
+            <div id="habitStatsDetailed" style="margin-top: 24px;"></div>
+        </div>
+    </div>
 
-            <div id="habitStatsDetailed" style="margin-top: 24px;">
-                <!-- Detailed stats per habit -->
+    <!-- Backup Modal -->
+    <div id="backupModal" class="overlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <h2>管理資料安全</h2>
+            <p>即使瀏覽器清除快取，你也可以透過備份檔案快速找回所有成長記錄。</p>
+            <div class="btn-group">
+                <button class="primary-btn" style="padding:15px;" onclick="exportData()">⬇️ 下載備份 (.json)</button>
+                <button class="secondary-btn" onclick="document.getElementById('fileInput').click()">⬆️ 還原備份檔案</button>
+                <button class="secondary-btn" onclick="copyToClipboardData()">📋 複製 JSON 代碼 (手機方便)</button>
+                <button class="secondary-btn" onclick="importFromText()">📥 輸入代碼還原</button>
+                <input type="file" id="fileInput" style="display:none" onchange="importData(event)">
+                <button class="secondary-btn" style="color:#ff4b4b; border-color:#ff4b4b22;"
+                    onclick="closeModal()">關閉</button>
             </div>
         </div>
     </div>
 
     <script src="app.js"></script>
-    <script>
-        if ('serviceWorker' in navigator)
-        {
-            window.addEventListener('load', () =>
-            {
-                navigator.serviceWorker.register('sw.js').catch(() => { });
-            });
-        }
-    </script>
 </body>
 
 </html>
