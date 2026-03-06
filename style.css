@@ -1,0 +1,22 @@
+body {
+  font-family: sans-serif;
+  max-width: 500px;
+  margin: auto;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+}
+
+li {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.streak {
+  color: green;
+  font-size: 14px;
+}
