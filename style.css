@@ -236,6 +236,16 @@ header {
   transition: height 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+.cell {
+  background: var(--card-light);
+  transition: background 0.3s ease;
+}
+
+.cell.lvl-1 { background: #4c1d95; }
+.cell.lvl-2 { background: #7c3aed; }
+.cell.lvl-3 { background: #a78bfa; }
+.cell.lvl-4 { background: #ddd6fe; }
+
 .bar-label {
   font-size: 0.6rem;
   color: var(--text-dim);

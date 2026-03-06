@@ -199,11 +199,10 @@ function renderAnalytics() {
 
     const max = Math.max(...counts, 1);
     for (let i = 0; i < 7; i++) {
-        // Calculate the actual label for the day
         const labelDate = new Date(todayStart - (6 - i) * ONE_DAY);
         const label = dayLabels[labelDate.getDay()];
+        const height = Math.max((counts[i] / max) * 100, 2);
         
-        const height = Math.max((counts[i] / max) * 100, 2); // Ensure at least 2% height for visibility
         const barWrap = document.createElement("div");
         barWrap.className = "bar-wrap";
         barWrap.innerHTML = `
@@ -221,34 +220,62 @@ function renderAnalytics() {
         const hCard = document.createElement("div");
         hCard.className = "chart-card";
         const total = h.logs.length;
-        const activeDays = new Set(h.logs.map(ts => new Date(ts).toISOString().split('T')[0])).size;
         
+        // Calculate milestones (e.g., every 50 logs is a level)
+        const progress = Math.min((total % 50) / 50 * 100, 100);
+        const level = Math.floor(total / 50) + 1;
+
         hCard.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <span style="font-weight:700;">${h.name}</span>
-                <span style="color:var(--primary); font-weight:800;">${total} 次</span>
+                <span style="color:var(--primary); font-weight:800; font-size:1.1rem;">${total} <small style="font-size:0.7rem; opacity:0.6;">次成就</small></span>
             </div>
-            <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 8px;">
-                平均紀錄頻率: ${(total / Math.max(1, activeDays)).toFixed(1)} 次/天
+            
+            <div style="margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-dim); margin-bottom:4px;">
+                    <span>階段 ${level} 進度</span>
+                    <span>${total % 50} / 50</span>
+                </div>
+                <div style="height:6px; background:var(--card-light); border-radius:3px; overflow:hidden;">
+                    <div style="height:100%; width:${progress}%; background:linear-gradient(to right, var(--primary), var(--secondary)); transition: width 1s ease;"></div>
+                </div>
             </div>
-            <div style="display:flex; gap:4px; margin-top:12px;">
+
+            <div style="display:flex; flex-wrap:wrap; gap:4px;">
                 ${renderMiniHeatmap(h.logs)}
             </div>
+            <p style="font-size:0.65rem; color:var(--text-dim); margin-top:8px; text-align:right;">過去 28 天熱力分布</p>
         `;
         container.appendChild(hCard);
     });
 }
 
 function renderMiniHeatmap(logs) {
-    const logSet = new Set(logs.map(ts => new Date(ts).toISOString().split('T')[0]));
+    // Use local date strings to group logs
+    const logCountsByDate = {};
+    logs.forEach(ts => {
+        const d = new Date(ts);
+        const s = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+        logCountsByDate[s] = (logCountsByDate[s] || 0) + 1;
+    });
+
     let html = "";
     const now = new Date();
-    for (let i = 28; i >= 0; i--) {
+    for (let i = 27; i >= 0; i--) {
         const d = new Date();
         d.setDate(now.getDate() - i);
-        const s = d.toISOString().split('T')[0];
-        const isActive = logSet.has(s);
-        html += `<div style="width:10px; height:10px; border-radius:2px; background: ${isActive ? 'var(--primary)' : 'var(--card-light)'};"></div>`;
+        const s = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+        const count = logCountsByDate[s] || 0;
+        
+        let levelClass = "";
+        if (count > 0) {
+            if (count >= 4) levelClass = "lvl-4";
+            else if (count >= 3) levelClass = "lvl-3";
+            else if (count >= 2) levelClass = "lvl-2";
+            else levelClass = "lvl-1";
+        }
+        
+        html += `<div class="cell ${levelClass}" style="width:11px; height:11px; border-radius:2px;"></div>`;
     }
     return html;
 }
