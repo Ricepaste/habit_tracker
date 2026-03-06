@@ -288,14 +288,61 @@ input[type="text"] {
     font-size: 1rem;
 }
 
-.btn-full {
-    width: 100%;
-    padding: 18px;
-    border-radius: 18px;
-    font-weight: 700;
-    font-size: 1rem;
+/* Log History List */
+.log-history {
+    max-height: 250px;
+    overflow-y: auto;
+    margin: 16px 0;
+    padding-right: 4px;
+}
+
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: var(--card-light);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.history-item span {
+    color: var(--text-dim);
+}
+
+.btn-mini-del {
+    background: #ef444422;
+    color: #ef4444;
     border: none;
+    padding: 4px 8px;
+    border-radius: 6px;
     cursor: pointer;
+    font-size: 0.75rem;
+}
+
+/* Backfilling Section */
+.backfill-section {
+    background: var(--card-light);
+    padding: 16px;
+    border-radius: 16px;
+    margin-top: 24px;
+}
+
+.backfill-controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+input[type="date"], input[type="time"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: white;
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    flex: 1;
 }
 
 /* Animations */

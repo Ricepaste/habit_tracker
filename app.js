@@ -239,23 +239,112 @@ function closeSheets() {
     document.querySelectorAll(".sheet").forEach(s => s.classList.remove("open"));
 }
 
+/**
+ * Log Management: History & Manual Edits
+ */
+function deleteSpecificLog(habitId, timestamp) {
+    if (!confirm("確定要刪除這筆紀錄嗎？此動作無法復原。")) return;
+    const habit = state.habits.find(h => h.id === habitId);
+    if (habit) {
+        habit.logs = habit.logs.filter(ts => ts !== timestamp);
+        save();
+        openHabitDetails(habitId); // Refresh details view
+        renderHabits();
+    }
+}
+
+function addBackLog(habitId) {
+    const dateInput = document.getElementById("backlog-date");
+    const timeInput = document.getElementById("backlog-time");
+    
+    if (!dateInput.value) {
+        alert("請選擇日期");
+        return;
+    }
+
+    const timeStr = timeInput.value || "12:00";
+    const timestamp = new Date(`${dateInput.value}T${timeStr}`).getTime();
+    
+    if (isNaN(timestamp)) {
+        alert("無效的時間格式");
+        return;
+    }
+
+    const habit = state.habits.find(h => h.id === habitId);
+    if (habit) {
+        habit.logs.push(timestamp);
+        habit.logs.sort((a, b) => b - a); // Keep it sorted descending
+        save();
+        openHabitDetails(habitId);
+        renderHabits();
+        alert("補登成功！");
+    }
+}
+
 function openHabitDetails(id) {
     const h = state.habits.find(x => x.id === id);
     if (!h) return;
     
     const content = document.getElementById("details-content");
+    
+    // Sort logs by time (newest first)
+    const sortedLogs = [...h.logs].sort((a, b) => b - a);
+    
+    let historyHtml = sortedLogs.slice(0, 50).map(ts => {
+        const d = new Date(ts);
+        const dateStr = d.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
+        const timeStr = d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+        return `
+            <div class="history-item">
+                <div>
+                    <strong>${dateStr}</strong> <span>${timeStr}</span>
+                </div>
+                <button class="btn-mini-del" onclick="deleteSpecificLog(${h.id}, ${ts})">刪除</button>
+            </div>
+        `;
+    }).join("");
+
+    if (h.logs.length === 0) historyHtml = '<div style="text-align:center; padding:20px; color:var(--text-dim);">尚未有紀錄</div>';
+
     content.innerHTML = `
-        <h2 style="margin-bottom:8px;">${h.name}</h2>
-        <p style="color:var(--text-dim); margin-bottom:24px;">紀錄於 ${new Date(h.createdAt).toLocaleDateString()}</p>
-        
-        <div class="input-group">
-            <label>管理行為</label>
-            <button class="btn-full" style="background:#ef444422; color:#ef4444;" onclick="deleteHabit(${h.id})">刪除此成長項目</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h2 style="margin:0;">管理項目</h2>
+            <button onclick="closeSheets()" style="background:none; border:none; color:var(--text-dim); font-size:1.5rem;">×</button>
         </div>
         
-        <button class="btn-full" style="background:var(--card-light); color:white; margin-top:12px;" onclick="closeSheets()">關閉</button>
+        <div class="input-group">
+            <label>項目名稱</label>
+            <input type="text" value="${h.name}" onchange="updateHabitName(${h.id}, this.value)">
+        </div>
+
+        <label style="font-size: 0.8rem; color: var(--text-dim); display:block; margin-bottom: 8px;">最近 50 筆紀錄</label>
+        <div class="log-history">
+            ${historyHtml}
+        </div>
+
+        <div class="backfill-section">
+            <label style="font-size: 0.8rem; font-weight:700; color:var(--primary);">🕒 補登成就紀錄</label>
+            <div class="backfill-controls">
+                <input type="date" id="backlog-date" value="${new Date().toISOString().split('T')[0]}">
+                <input type="time" id="backlog-time" value="12:00">
+            </div>
+            <button class="btn-full primary-btn" style="margin-top:12px; padding:12px; font-size:0.9rem;" onclick="addBackLog(${h.id})">確認補登</button>
+        </div>
+
+        <div style="margin-top: 32px; border-top: 1px solid var(--border); padding-top: 24px;">
+            <button class="btn-full" style="background:#ef444422; color:#ef4444; padding:12px;" onclick="deleteHabit(${h.id})">⚠️ 永久刪除此習慣</button>
+        </div>
     `;
     openSheet("sheet-details");
+}
+
+function updateHabitName(id, newName) {
+    const h = state.habits.find(x => x.id === id);
+    if (h && newName.trim()) {
+        h.name = newName.trim();
+        save();
+        renderHabits();
+    }
 }
 
 function showUndoBanner() {
