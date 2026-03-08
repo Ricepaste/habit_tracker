@@ -392,3 +392,127 @@ input[type="date"], input[type="time"] {
 .habit-card {
     animation: popIn 0.3s ease-out forwards;
 }
+
+/* ========================================= */
+/* Focus Timer (Pomodoro) UI                 */
+/* ========================================= */
+.focus-timer-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 40px 0;
+}
+
+.timer-circle {
+    position: relative;
+    width: 250px;
+    height: 250px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.timer-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg); /* Start from top */
+}
+
+.timer-bg {
+    fill: none;
+    stroke: var(--card-light);
+    stroke-width: 4;
+}
+
+.timer-progress {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-dasharray: 283; /* 2 * pi * r (45) */
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+.timer-display {
+    font-size: 3.5rem;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    z-index: 10;
+    font-variant-numeric: tabular-nums;
+}
+
+.timer-label {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    margin-top: -5px;
+    z-index: 10;
+}
+
+.focus-controls {
+    display: flex;
+    gap: 16px;
+}
+
+/* ========================================= */
+/* Gacha Reward System UI                    */
+/* ========================================= */
+.gacha-container {
+    text-align: center;
+    margin-top: 40px;
+}
+
+.gacha-box {
+    font-size: 8rem;
+    filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.4));
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
+}
+
+.gacha-box:active {
+    transform: scale(0.9) rotate(-5deg);
+}
+
+.gacha-box.animating {
+    animation: shake 0.5s infinite;
+}
+
+@keyframes shake {
+    0% { transform: translate(1px, 1px) rotate(0deg); }
+    10% { transform: translate(-1px, -2px) rotate(-1deg); }
+    20% { transform: translate(-3px, 0px) rotate(1deg); }
+    30% { transform: translate(3px, 2px) rotate(0deg); }
+    40% { transform: translate(1px, -1px) rotate(1deg); }
+    50% { transform: translate(-1px, 2px) rotate(-1deg); }
+    60% { transform: translate(-3px, 1px) rotate(0deg); }
+    70% { transform: translate(3px, 1px) rotate(-1deg); }
+    80% { transform: translate(-1px, -1px) rotate(1deg); }
+    90% { transform: translate(1px, 2px) rotate(0deg); }
+    100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+
+.inventory-list {
+    margin-top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.inv-item {
+    background: var(--card-light);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.inv-item.Rare { border-color: #10b981; color: #10b981; }
+.inv-item.Epic { border-color: #3b82f6; color: #3b82f6; }
+.inv-item.Legendary { border-color: #f59e0b; color: #f59e0b; font-weight: bold; background: rgba(245, 158, 11, 0.1); }

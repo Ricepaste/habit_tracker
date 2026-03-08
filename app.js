@@ -8,11 +8,23 @@ const STORAGE_KEY = "habitFlowProData";
 // 1. Data Architecture
 let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
     habits: [],
+    focusLogs: [], // Array of { timestamp, duration }
+    rewards: {
+        tickets: 0,
+        prizePool: { Rare: ["75 NT"], Epic: ["175 NT", "衣服"], Legendary: ["375 NT", "遊戲"] },
+        missTime: { Rare: 0, Epic: 0 },
+        inventory: [] // Array of { prize, rarity, timestamp }
+    },
     settings: { theme: 'dark' }
 };
 
-// Migration: If user has old data format, convert it
+// Migration: Upgrade existing specific data without overriding old
 function migrate() {
+    // Port missing Top level structures specifically
+    if (!state.focusLogs) state.focusLogs = [];
+    if (!state.rewards) state.rewards = { tickets: 0, prizePool: { Rare: ["75 NT"], Epic: ["175 NT", "衣服"], Legendary: ["375 NT", "遊戲"] }, missTime: { Rare: 0, Epic: 0 }, inventory: [] };
+    
+    // Port old HabitFlowData to V3/V4 if exists
     const oldKey = "habitFlowData";
     const oldDataString = localStorage.getItem(oldKey);
     
@@ -30,24 +42,37 @@ function migrate() {
                             }
                         }
                     } else if (Array.isArray(h.logs)) {
-                        return h; // Already migrated
+                        timestamps.push(...h.logs);
                     }
                     
                     return {
                         id: h.id || Date.now() + Math.random(),
                         name: h.name,
                         logs: timestamps, // Now an array of timestamps!
-                        createdAt: h.createdAt || new Date().toISOString()
+                        createdAt: h.createdAt || new Date().toISOString(),
+                        rewardSettings: h.rewardSettings || { enabled: false, threshold: 10 }
                     };
                 });
                 // After migration, clear old and save new
                 localStorage.removeItem(oldKey);
                 save();
+                return;
             }
         } catch (e) {
             console.error("Migration failed", e);
         }
     }
+    
+    // Ensure all existing habits have rewardSettings
+    let modified = false;
+    state.habits.forEach(h => {
+        if (!h.rewardSettings) {
+            h.rewardSettings = { enabled: false, threshold: 10 };
+            modified = true;
+        }
+    });
+
+    if (modified) save();
 }
 
 function save() {
@@ -64,6 +89,19 @@ function logHabit(id) {
     const now = Date.now();
     habit.logs.push(now);
     lastAction = { type: 'log', habitId: id, timestamp: now };
+    
+    // Reward Ticket Calculation for this habit
+    if (habit.rewardSettings && habit.rewardSettings.enabled) {
+        if (!habit.rewardSettings.lifetimeTickets) habit.rewardSettings.lifetimeTickets = 0;
+        
+        const expectedTickets = Math.floor(habit.logs.length / habit.rewardSettings.threshold);
+        if (expectedTickets > habit.rewardSettings.lifetimeTickets) {
+            const newTickets = expectedTickets - habit.rewardSettings.lifetimeTickets;
+            state.rewards.tickets += newTickets;
+            habit.rewardSettings.lifetimeTickets = expectedTickets;
+            alert(`🎉 恭喜！達成目標，獲得了 ${newTickets} 張抽獎券！`);
+        }
+    }
     
     save();
     renderHabits();
@@ -93,7 +131,8 @@ function createNewHabit() {
         id: Date.now(),
         name: name,
         logs: [],
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        rewardSettings: { enabled: false, threshold: 10 }
     });
     
     document.getElementById("input-habit-name").value = "";
@@ -111,6 +150,252 @@ function deleteHabit(id) {
     }
 }
 
+// ==========================================
+// Focus Timer (Pomodoro Engine)
+// ==========================================
+let focusInterval = null;
+let focusTimeLeft = 25 * 60; // 25 mins in seconds
+const TOTAL_FOCUS_TIME = 25 * 60;
+let focusMode = 'work'; // 'work' | 'rest'
+let focusStartTime = null;
+
+function updateFocusDisplay() {
+    const mins = Math.floor(focusTimeLeft / 60);
+    const secs = focusTimeLeft % 60;
+    document.getElementById("focus-time-display").innerText = 
+        `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    
+    const progress = document.querySelector(".timer-progress");
+    const dashoffset = 283 - (283 * (focusTimeLeft / (focusMode === 'work' ? TOTAL_FOCUS_TIME : 5 * 60)));
+    if(progress) progress.style.strokeDashoffset = dashoffset;
+}
+
+function startFocusTimer() {
+    if (focusInterval) return;
+    
+    focusStartTime = Date.now();
+    document.getElementById("btn-focus-start").style.display = "none";
+    document.getElementById("btn-focus-stop").style.display = "block";
+    
+    focusInterval = setInterval(() => {
+        focusTimeLeft--;
+        updateFocusDisplay();
+        
+        if (focusTimeLeft <= 0) {
+            completeFocusSession();
+        }
+    }, 1000);
+}
+
+function stopFocusTimer() {
+    clearInterval(focusInterval);
+    focusInterval = null;
+    focusTimeLeft = focusMode === 'work' ? TOTAL_FOCUS_TIME : 5 * 60;
+    updateFocusDisplay();
+    
+    document.getElementById("btn-focus-start").style.display = "block";
+    document.getElementById("btn-focus-stop").style.display = "none";
+}
+
+function completeFocusSession() {
+    clearInterval(focusInterval);
+    focusInterval = null;
+    
+    if (focusMode === 'work') {
+        const durationMins = TOTAL_FOCUS_TIME / 60;
+        state.focusLogs.push({ timestamp: Date.now(), duration: durationMins });
+        checkFocusRewards();
+        save();
+        
+        // Switch to rest
+        focusMode = 'rest';
+        focusTimeLeft = 5 * 60;
+        document.getElementById("focus-mode-label").innerText = "休息模式 (5分鐘)";
+        document.getElementById("focus-mode-label").style.color = "#10b981";
+        document.querySelector(".timer-progress").style.stroke = "#10b981";
+        startFocusTimer();
+    } else {
+        // Switch back to work
+        stopFocusTimer();
+        focusMode = 'work';
+        focusTimeLeft = TOTAL_FOCUS_TIME;
+        document.getElementById("focus-mode-label").innerText = "工作模式";
+        document.getElementById("focus-mode-label").style.color = "var(--text-dim)";
+        document.querySelector(".timer-progress").style.stroke = "var(--primary)";
+    }
+    
+    renderFocusSummary();
+}
+
+function checkFocusRewards() {
+    // 1 ticket per 7 hours (420 mins)
+    const totalMinutes = state.focusLogs.reduce((acc, curr) => acc + curr.duration, 0);
+    const expectedTickets = Math.floor(totalMinutes / 420);
+    
+    // We need to track how many focus tickets we've ever earned to avoid re-awarding.
+    // Given the current schema, an easy way is to recalculate total earned vs what we have.
+    // Better: just add a specific property or assume standard rate?
+    // For now, since state.rewards.tickets is a moving balance, let's track lifetime earn.
+    if (!state.rewards.lifetimeFocusTickets) state.rewards.lifetimeFocusTickets = 0;
+    
+    if (expectedTickets > state.rewards.lifetimeFocusTickets) {
+        const newTickets = expectedTickets - state.rewards.lifetimeFocusTickets;
+        state.rewards.tickets += newTickets;
+        state.rewards.lifetimeFocusTickets = expectedTickets;
+        // Optionally notify user
+    }
+}
+
+function renderFocusSummary() {
+    const todayStart = new Date().setHours(0,0,0,0);
+    const todayLogs = state.focusLogs.filter(l => l.timestamp >= todayStart);
+    const todayMins = todayLogs.reduce((acc, curr) => acc + curr.duration, 0);
+    
+    const h = Math.floor(todayMins / 60);
+    const m = todayMins % 60;
+    
+    const summaryEl = document.getElementById("focus-today-total");
+    if (summaryEl) summaryEl.innerText = `${h}h ${m}m`;
+}
+
+// ==========================================
+// Gacha Reward System
+// ==========================================
+function drawReward() {
+    if (state.rewards.tickets <= 0) {
+        alert("抽獎券不足！");
+        return;
+    }
+
+    const { prizePool, missTime } = state.rewards;
+    
+    if (prizePool.Rare.length === 0 && prizePool.Epic.length === 0 && prizePool.Legendary.length === 0) {
+        alert("獎池為空！請先到「管理獎池」設定獎勵。");
+        return;
+    }
+
+    state.rewards.tickets -= 1;
+    document.getElementById("ticket-count").innerText = state.rewards.tickets;
+    
+    // Animation
+    const box = document.getElementById("gacha-box");
+    box.classList.add("animating");
+    document.getElementById("btn-draw").disabled = true;
+
+    setTimeout(() => {
+        box.classList.remove("animating");
+        document.getElementById("btn-draw").disabled = false;
+        
+        // --- Draw Logic (Ported from Prize.py) ---
+        let rarity = null;
+        let rng = Math.random() * 100;
+        if (rng < 70) rarity = "Rare";
+        else if (rng < 95) rarity = "Epic";
+        else rarity = "Legendary";
+
+        // Pity System
+        if (missTime.Rare >= 9 && rarity === "Rare") {
+            rarity = "Epic";
+        }
+        if (rarity === "Epic" && missTime.Epic >= 9 && rarity !== "Legendary") {
+            rarity = "Legendary";
+        }
+
+        // Finalize Rarity Logic
+        switch(rarity) {
+            case "Rare":
+                missTime.Rare = (missTime.Rare + 1) % 10;
+                break;
+            case "Epic":
+                missTime.Epic = (missTime.Epic + 1) % 10;
+                missTime.Rare = 0;
+                break;
+            case "Legendary":
+                missTime.Epic = 0;
+                missTime.Rare = 0;
+                break;
+        }
+
+        // If pool is empty for that rarity, fallback to any available
+        if (!prizePool[rarity] || prizePool[rarity].length === 0) {
+            const available = ["Rare", "Epic", "Legendary"].filter(r => prizePool[r].length > 0);
+            rarity = available[Math.floor(Math.random() * available.length)];
+        }
+
+        const prizeList = prizePool[rarity];
+        const prize = prizeList[Math.floor(Math.random() * prizeList.length)];
+        
+        // Update Inventory
+        if (!state.rewards.inventory) state.rewards.inventory = [];
+        state.rewards.inventory.push({
+            prize: prize,
+            rarity: rarity,
+            timestamp: Date.now()
+        });
+        
+        save();
+        renderRewards();
+        
+        // Show notification
+        const emoji = rarity === "Legendary" ? "👑" : rarity === "Epic" ? "✨" : "🍀";
+        alert(`${emoji} 恭喜抽中 ${rarity} 等級獎勵：${prize}！`);
+        
+    }, 600);
+}
+
+function savePrizePool() {
+    const rareStr = document.getElementById("pool-rare").value;
+    const epicStr = document.getElementById("pool-epic").value;
+    const legStr = document.getElementById("pool-legendary").value;
+    
+    state.rewards.prizePool = {
+        Rare: rareStr.split(",").map(s => s.trim()).filter(Boolean),
+        Epic: epicStr.split(",").map(s => s.trim()).filter(Boolean),
+        Legendary: legStr.split(",").map(s => s.trim()).filter(Boolean)
+    };
+    
+    save();
+    closeSheets();
+    alert("獎池設定已儲存！");
+}
+
+function renderRewards() {
+    document.getElementById("ticket-count").innerText = state.rewards.tickets || 0;
+    
+    const list = document.getElementById("inventory-list");
+    list.innerHTML = "";
+    
+    if (!state.rewards.inventory || state.rewards.inventory.length === 0) {
+        list.innerHTML = `<div style="text-align:center; width:100%; padding:20px; color:var(--text-dim);">背包目前空空如也。</div>`;
+        return;
+    }
+    
+    const sortedInv = [...state.rewards.inventory].sort((a,b) => b.timestamp - a.timestamp);
+    sortedInv.forEach((item, index) => {
+        const div = document.createElement("div");
+        div.className = `inv-item ${item.rarity}`;
+        div.innerHTML = `
+            <span>${item.prize}</span>
+            <button onclick="consumeItem(${index})" style="background:none; border:none; color:inherit; opacity:0.6; font-size:1rem; cursor:pointer;" title="使用/刪除">✖</button>
+        `;
+        list.appendChild(div);
+    });
+}
+
+function consumeItem(index) {
+    if (confirm("要使用或移除這項獎勵嗎？")) {
+        const sortedInv = [...state.rewards.inventory].sort((a,b) => b.timestamp - a.timestamp);
+        const itemToRemove = sortedInv[index];
+        const realIndex = state.rewards.inventory.findIndex(i => i.timestamp === itemToRemove.timestamp && i.prize === itemToRemove.prize);
+        
+        if (realIndex > -1) {
+            state.rewards.inventory.splice(realIndex, 1);
+            save();
+            renderRewards();
+        }
+    }
+}
+
 // 3. View Management
 function navigate(view, el) {
     document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
@@ -121,6 +406,11 @@ function navigate(view, el) {
     
     if (view === 'habits') renderHabits();
     if (view === 'analytics') renderAnalytics();
+    if (view === 'focus') {
+        updateFocusDisplay();
+        renderFocusSummary();
+    }
+    if (view === 'rewards') renderRewards();
 }
 
 // 4. Rendering
@@ -171,51 +461,7 @@ function renderAnalytics() {
         return;
     }
 
-    // A. Weekly Frequency Chart (Last 7 Days)
-    const weeklyCard = document.createElement("div");
-    weeklyCard.className = "chart-card";
-    weeklyCard.innerHTML = `<h3>週成長趨勢</h3><p style="color:var(--text-dim); font-size:0.8rem;">過去七天的成就累積</p>`;
-    
-    const barGrid = document.createElement("div");
-    barGrid.className = "bar-grid";
-    
-    const dayLabels = ['日', '一', '二', '三', '四', '五', '六'];
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const counts = Array(7).fill(0);
-    const ONE_DAY = 1000 * 60 * 60 * 24;
-    
-    state.habits.forEach(h => {
-        h.logs.forEach(ts => {
-            const logDate = new Date(ts);
-            const logDayStart = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate()).getTime();
-            const dayDiff = Math.floor((todayStart - logDayStart) / ONE_DAY);
-            
-            if (dayDiff >= 0 && dayDiff < 7) {
-                counts[6 - dayDiff]++;
-            }
-        });
-    });
-
-    const max = Math.max(...counts, 1);
-    for (let i = 0; i < 7; i++) {
-        const labelDate = new Date(todayStart - (6 - i) * ONE_DAY);
-        const label = dayLabels[labelDate.getDay()];
-        const height = Math.max((counts[i] / max) * 100, 2);
-        
-        const barWrap = document.createElement("div");
-        barWrap.className = "bar-wrap";
-        barWrap.innerHTML = `
-            <div style="font-size:0.7rem; color:var(--primary); margin-bottom:4px; opacity:${counts[i]>0?1:0}">${counts[i]}</div>
-            <div class="bar" style="height: ${height}%"></div>
-            <div class="bar-label">${label}</div>
-        `;
-        barGrid.appendChild(barWrap);
-    }
-    weeklyCard.appendChild(barGrid);
-    container.appendChild(weeklyCard);
-
-    // B. Specific Habit Breakdown
+    // A. Specific Habit Breakdown
     state.habits.forEach(h => {
         const hCard = document.createElement("div");
         hCard.className = "chart-card";
@@ -282,6 +528,13 @@ function renderMiniHeatmap(logs) {
 
 // 5. UI Helpers
 function openSheet(id) {
+    if (id === 'sheet-prize-pool') {
+        const pool = state.rewards.prizePool;
+        document.getElementById("pool-rare").value = pool.Rare ? pool.Rare.join(", ") : "";
+        document.getElementById("pool-epic").value = pool.Epic ? pool.Epic.join(", ") : "";
+        document.getElementById("pool-legendary").value = pool.Legendary ? pool.Legendary.join(", ") : "";
+    }
+    
     document.getElementById("sheet-overlay").classList.add("open");
     document.getElementById(id).classList.add("open");
 }
@@ -330,8 +583,42 @@ function addBackLog(habitId) {
         save();
         openHabitDetails(habitId);
         renderHabits();
-        alert("補登成功！");
+        
+        // Force ticket check retroactively
+        if (habit.rewardSettings && habit.rewardSettings.enabled) {
+            if (!habit.rewardSettings.lifetimeTickets) habit.rewardSettings.lifetimeTickets = 0;
+            const expectedTickets = Math.floor(habit.logs.length / habit.rewardSettings.threshold);
+            if (expectedTickets > habit.rewardSettings.lifetimeTickets) {
+                const newTickets = expectedTickets - habit.rewardSettings.lifetimeTickets;
+                state.rewards.tickets += newTickets;
+                habit.rewardSettings.lifetimeTickets = expectedTickets;
+                alert(`補登成功！並額外獲得了 ${newTickets} 張抽獎券！`);
+            } else {
+                alert("補登成功！");
+            }
+        } else {
+            alert("補登成功！");
+        }
     }
+}
+
+function addFocusBackLog() {
+    const dateInput = document.getElementById("focus-backlog-date").value;
+    const durationInput = parseInt(document.getElementById("focus-backlog-duration").value) || 25;
+    
+    if (!dateInput) {
+        alert("請選擇補登日期");
+        return;
+    }
+    
+    const timestamp = new Date(`${dateInput}T12:00`).getTime();
+    state.focusLogs.push({ timestamp, duration: durationInput });
+    checkFocusRewards();
+    save();
+    
+    renderFocusSummary();
+    closeSheets();
+    alert("專注時間補登成功！");
 }
 
 function openHabitDetails(id) {
@@ -359,6 +646,36 @@ function openHabitDetails(id) {
 
     if (h.logs.length === 0) historyHtml = '<div style="text-align:center; padding:20px; color:var(--text-dim);">尚未有紀錄</div>';
 
+    // Generate Weekly Chart for THIS habit only
+    const dayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const counts = Array(7).fill(0);
+    const ONE_DAY = 1000 * 60 * 60 * 24;
+    
+    h.logs.forEach(ts => {
+        const logDate = new Date(ts);
+        const logDayStart = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate()).getTime();
+        const dayDiff = Math.floor((todayStart - logDayStart) / ONE_DAY);
+        if (dayDiff >= 0 && dayDiff < 7) counts[6 - dayDiff]++;
+    });
+
+    const max = Math.max(...counts, 1);
+    let chartHtml = `<div class="bar-grid" style="margin-top:10px; height: 100px;">`;
+    for (let i = 0; i < 7; i++) {
+        const labelDate = new Date(todayStart - (6 - i) * ONE_DAY);
+        const label = dayLabels[labelDate.getDay()];
+        const height = Math.max((counts[i] / max) * 100, 2);
+        chartHtml += `
+            <div class="bar-wrap">
+                <div style="font-size:0.7rem; color:var(--primary); margin-bottom:4px; opacity:${counts[i]>0?1:0}">${counts[i]}</div>
+                <div class="bar" style="height: ${height}%"></div>
+                <div class="bar-label">${label}</div>
+            </div>
+        `;
+    }
+    chartHtml += `</div>`;
+
     content.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
             <h2 style="margin:0;">管理項目</h2>
@@ -370,7 +687,26 @@ function openHabitDetails(id) {
             <input type="text" value="${h.name}" onchange="updateHabitName(${h.id}, this.value)">
         </div>
 
-        <label style="font-size: 0.8rem; color: var(--text-dim); display:block; margin-bottom: 8px;">最近 50 筆紀錄</label>
+        <div class="backfill-section" style="margin-top:0;">
+            <label style="font-size: 0.8rem; font-weight:700; color:var(--text-dim);">📊 專屬週成長趨勢</label>
+            ${chartHtml}
+        </div>
+
+        <div class="backfill-section">
+            <label style="font-size: 0.8rem; font-weight:700; color:var(--primary);">🎁 抽獎券任務設定</label>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px;">
+                <span style="font-size:0.9rem;">啟用賺取抽獎券</span>
+                <input type="checkbox" ${h.rewardSettings.enabled ? 'checked' : ''} onchange="toggleHabitReward(${h.id}, this.checked)" style="width:20px; height:20px; accent-color:var(--primary);">
+            </div>
+            ${h.rewardSettings.enabled ? `
+            <div style="margin-top:12px; display:flex; align-items:center; gap:8px;">
+                <span style="font-size:0.9rem;">每累積</span>
+                <input type="number" value="${h.rewardSettings.threshold}" min="1" max="100" onchange="updateHabitRewardThreshold(${h.id}, this.value)" style="width:60px; padding:8px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center;">
+                <span style="font-size:0.9rem;">次，獲得 1 張抽獎券</span>
+            </div>` : ''}
+        </div>
+
+        <label style="font-size: 0.8rem; color: var(--text-dim); display:block; margin-top: 24px; margin-bottom: 8px;">最近 50 筆紀錄</label>
         <div class="log-history">
             ${historyHtml}
         </div>
@@ -397,6 +733,25 @@ function updateHabitName(id, newName) {
         h.name = newName.trim();
         save();
         renderHabits();
+    }
+}
+
+function toggleHabitReward(id, enabled) {
+    const h = state.habits.find(x => x.id === id);
+    if (h) {
+        h.rewardSettings.enabled = enabled;
+        save();
+        openHabitDetails(id); // Re-render to show/hide threshold input
+    }
+}
+
+function updateHabitRewardThreshold(id, value) {
+    const h = state.habits.find(x => x.id === id);
+    if (h) {
+        let val = parseInt(value);
+        if (isNaN(val) || val < 1) val = 1;
+        h.rewardSettings.threshold = val;
+        save();
     }
 }
 

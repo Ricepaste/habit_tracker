@@ -38,7 +38,6 @@
                 onclick="openSheet('sheet-add')">+ 新增成長項目</button>
         </div>
 
-        <!-- View: Analytics -->
         <div id="view-analytics" class="view" style="display: none;">
             <header>
                 <div class="brand">
@@ -51,6 +50,68 @@
                 <!-- Heatmaps and Bar Charts will be rendered here -->
             </div>
         </div>
+
+        <!-- View: Focus (Pomodoro) -->
+        <div id="view-focus" class="view" style="display: none;">
+            <header>
+                <div class="brand">
+                    <h1>專注時光</h1>
+                    <div class="date-today">深耕與累積</div>
+                </div>
+                <div id="focus-summary-top" style="text-align:right;">
+                    <span style="font-size:0.8rem; color:var(--text-dim);">今日累積</span>
+                    <div style="font-weight:800; color:var(--primary); font-size:1.2rem;" id="focus-today-total">0h 0m
+                    </div>
+                </div>
+            </header>
+
+            <div class="focus-timer-container">
+                <div class="timer-circle">
+                    <svg class="timer-svg" viewBox="0 0 100 100">
+                        <circle class="timer-bg" cx="50" cy="50" r="45"></circle>
+                        <circle class="timer-progress" cx="50" cy="50" r="45"></circle>
+                    </svg>
+                    <div class="timer-display" id="focus-time-display">25:00</div>
+                    <div class="timer-label" id="focus-mode-label">工作模式</div>
+                </div>
+            </div>
+
+            <div class="focus-controls">
+                <button id="btn-focus-start" class="btn-full primary-btn" onclick="startFocusTimer()">開始專注</button>
+                <button id="btn-focus-stop" class="btn-full" style="background:#ef444422; color:#ef4444; display:none;"
+                    onclick="stopFocusTimer()">放棄/結束</button>
+            </div>
+
+            <!-- Manually Backfill Focus -->
+            <button class="btn-full" style="background:var(--card-light); margin-top:32px; color:var(--text-dim);"
+                onclick="openSheet('sheet-focus-backfill')">+ 手動補登專注時間</button>
+        </div>
+
+        <!-- View: Rewards -->
+        <div id="view-rewards" class="view" style="display: none;">
+            <header>
+                <div class="brand">
+                    <h1>獎勵中心</h1>
+                    <div class="date-today">你的專屬戰利品</div>
+                </div>
+                <div style="text-align:right;">
+                    <span style="font-size:0.8rem; color:var(--text-dim);">持有抽獎券</span>
+                    <div style="font-weight:800; color:#f59e0b; font-size:1.2rem;">🎟️ <span id="ticket-count">0</span>
+                    </div>
+                </div>
+            </header>
+            <div class="gacha-container">
+                <div id="gacha-box" class="gacha-box">🎁</div>
+                <button id="btn-draw" class="btn-full primary-btn" style="margin-top:24px; font-size:1.1rem;"
+                    onclick="drawReward()">開始抽獎 (消耗 1 券)</button>
+            </div>
+
+            <button class="btn-full" style="background:var(--card-light); margin-top:32px; color:var(--text-dim);"
+                onclick="openSheet('sheet-prize-pool')">⚙️ 管理獎池</button>
+
+            <h3 style="margin-top:32px; font-size:1rem;">我的背包</h3>
+            <div id="inventory-list" class="inventory-list"></div>
+        </div>
     </div>
 
     <!-- Bottom Navigation -->
@@ -62,6 +123,14 @@
         <a href="javascript:void(0)" class="nav-item" onclick="navigate('analytics', this)">
             <span class="nav-icon">📊</span>
             <span>分析</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="navigate('focus', this)">
+            <span class="nav-icon">⏱️</span>
+            <span>專注</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="navigate('rewards', this)">
+            <span class="nav-icon">🎁</span>
+            <span>獎勵</span>
         </a>
     </nav>
 
@@ -91,6 +160,49 @@
         <div id="details-content">
             <!-- Habit breakdown, specific history, delete button -->
         </div>
+    </div>
+
+    <!-- Sheet: Focus Backfill -->
+    <div id="sheet-focus-backfill" class="sheet">
+        <h2>手動補登專注時間</h2>
+        <p style="color: var(--text-dim); margin-bottom: 24px;">補回遺漏的工作時段。</p>
+        <div class="input-group">
+            <label>日期</label>
+            <input type="date" id="focus-backlog-date">
+        </div>
+        <div class="input-group">
+            <label>時段總長 (分鐘)</label>
+            <input type="number" id="focus-backlog-duration" value="25" min="1">
+        </div>
+        <button class="btn-full primary-btn" style="margin-top:16px;" onclick="addFocusBackLog()">確認補登</button>
+        <button class="btn-full" style="background:var(--card-light); margin-top:12px; color:var(--text-dim);"
+            onclick="closeSheets()">取消</button>
+    </div>
+
+    <!-- Sheet: Prize Pool Management -->
+    <div id="sheet-prize-pool" class="sheet">
+        <h2>管理獎池</h2>
+        <p style="color: var(--text-dim); margin-bottom: 16px;">自訂各稀有度的獎勵內容 (以逗號分隔)</p>
+
+        <div class="input-group">
+            <label style="color:#10b981;">Rare (稀有) - 70% 機率，9抽保底</label>
+            <textarea id="pool-rare" rows="2"
+                style="width:100%; background:var(--bg); color:white; border:1px solid var(--border); padding:8px; border-radius:8px;"></textarea>
+        </div>
+        <div class="input-group">
+            <label style="color:#3b82f6;">Epic (史詩) - 25% 機率，9抽保底</label>
+            <textarea id="pool-epic" rows="2"
+                style="width:100%; background:var(--bg); color:white; border:1px solid var(--border); padding:8px; border-radius:8px;"></textarea>
+        </div>
+        <div class="input-group">
+            <label style="color:#f59e0b;">Legendary (傳說) - 5% 機率</label>
+            <textarea id="pool-legendary" rows="2"
+                style="width:100%; background:var(--bg); color:white; border:1px solid var(--border); padding:8px; border-radius:8px;"></textarea>
+        </div>
+
+        <button class="btn-full primary-btn" style="margin-top:16px;" onclick="savePrizePool()">儲存獎池設定</button>
+        <button class="btn-full" style="background:var(--card-light); margin-top:12px; color:var(--text-dim);"
+            onclick="closeSheets()">取消</button>
     </div>
 
     <!-- Sheet: Backup -->
