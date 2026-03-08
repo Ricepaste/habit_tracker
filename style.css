@@ -403,6 +403,31 @@ input[type="date"], input[type="time"] {
     margin: 40px 0;
 }
 
+.focus-mode-switcher {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.mode-btn {
+    background: var(--card-light);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mode-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
 .timer-circle {
     position: relative;
     width: 250px;

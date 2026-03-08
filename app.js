@@ -151,23 +151,58 @@ function deleteHabit(id) {
 }
 
 // ==========================================
-// Focus Timer (Pomodoro Engine)
+// Focus Timer (Pomodoro & Stopwatch Engine)
 // ==========================================
 let focusInterval = null;
-let focusTimeLeft = 25 * 60; // 25 mins in seconds
+let focusTimerMode = 'pomodoro'; // 'pomodoro' | 'stopwatch'
+let focusTimeLeft = 25 * 60; // Countdown if Pomo, Countup if Stopwatch
 const TOTAL_FOCUS_TIME = 25 * 60;
-let focusMode = 'work'; // 'work' | 'rest'
+let focusMode = 'work'; // 'work' | 'rest' (only for Pomo)
 let focusStartTime = null;
 
+function setFocusTimerMode(mode) {
+    if (focusInterval) {
+        if (!confirm("切換模式將停止當前計時，確定嗎？")) return;
+        stopFocusTimer();
+    }
+    focusTimerMode = mode;
+    
+    // UI Update
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(mode === 'pomodoro' ? 'mode-pomo' : 'mode-stopwatch').classList.add('active');
+    
+    if (mode === 'pomodoro') {
+        focusTimeLeft = TOTAL_FOCUS_TIME;
+        focusMode = 'work';
+        document.getElementById("focus-mode-label").innerText = "工作模式";
+        document.querySelector(".timer-progress").style.stroke = "var(--primary)";
+    } else {
+        focusTimeLeft = 0;
+        document.getElementById("focus-mode-label").innerText = "正向計時中";
+        document.querySelector(".timer-progress").style.stroke = "var(--secondary)"; // Maybe #818cf8
+    }
+    updateFocusDisplay();
+}
+
 function updateFocusDisplay() {
-    const mins = Math.floor(focusTimeLeft / 60);
-    const secs = focusTimeLeft % 60;
+    const totalSeconds = Math.abs(focusTimeLeft);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
     document.getElementById("focus-time-display").innerText = 
         `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     
     const progress = document.querySelector(".timer-progress");
-    const dashoffset = 283 - (283 * (focusTimeLeft / (focusMode === 'work' ? TOTAL_FOCUS_TIME : 5 * 60)));
-    if(progress) progress.style.strokeDashoffset = dashoffset;
+    if (!progress) return;
+
+    if (focusTimerMode === 'pomodoro') {
+        const dashoffset = 283 - (283 * (focusTimeLeft / (focusMode === 'work' ? TOTAL_FOCUS_TIME : 5 * 60)));
+        progress.style.strokeDashoffset = dashoffset;
+    } else {
+        // For stopwatch, maybe just show it filling up as minutes pass (e.g. 60 min loop) or just static full?
+        // Let's make it a 60-second loop ring for visual.
+        const dashoffset = 283 - (283 * ((focusTimeLeft % 60) / 60));
+        progress.style.strokeDashoffset = dashoffset;
+    }
 }
 
 function startFocusTimer() {
@@ -178,19 +213,47 @@ function startFocusTimer() {
     document.getElementById("btn-focus-stop").style.display = "block";
     
     focusInterval = setInterval(() => {
-        focusTimeLeft--;
-        updateFocusDisplay();
-        
-        if (focusTimeLeft <= 0) {
-            completeFocusSession();
+        if (focusTimerMode === 'pomodoro') {
+            focusTimeLeft--;
+            if (focusTimeLeft <= 0) {
+                completeFocusSession();
+            }
+        } else {
+            focusTimeLeft++;
         }
+        updateFocusDisplay();
     }, 1000);
 }
 
 function stopFocusTimer() {
+    if (!focusInterval && focusTimerMode === 'stopwatch' && focusTimeLeft > 0) {
+        // Already stopped, but we need to reset
+        focusTimeLeft = 0;
+        updateFocusDisplay();
+        return;
+    }
+    
+    if (focusTimerMode === 'stopwatch' && focusInterval) {
+        // Record the time before stopping
+        const durationMins = Math.floor(focusTimeLeft / 60);
+        if (durationMins > 0) {
+            state.focusLogs.push({ timestamp: Date.now(), duration: durationMins });
+            checkFocusRewards();
+            save();
+            renderFocusSummary();
+            alert(`正向計時結束！已紀錄 ${durationMins} 分鐘專注時間。`);
+        }
+    }
+
     clearInterval(focusInterval);
     focusInterval = null;
-    focusTimeLeft = focusMode === 'work' ? TOTAL_FOCUS_TIME : 5 * 60;
+    
+    if (focusTimerMode === 'pomodoro') {
+        focusTimeLeft = focusMode === 'work' ? TOTAL_FOCUS_TIME : 5 * 60;
+    } else {
+        focusTimeLeft = 0;
+    }
+    
     updateFocusDisplay();
     
     document.getElementById("btn-focus-start").style.display = "block";
