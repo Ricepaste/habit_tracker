@@ -263,6 +263,18 @@ header {
   z-index: 1001;
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sheet::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sheet::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
 }
 
 .sheet.open {
@@ -410,6 +422,41 @@ input[type="date"], input[type="time"] {
     margin-top: 24px;
 }
 
+.focus-dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.stat-card {
+    background: var(--card-light);
+    padding: 16px;
+    border-radius: 16px;
+    text-align: center;
+}
+
+.reward-status-card {
+    background: var(--card-light);
+    padding: 16px;
+    border-radius: 16px;
+    margin-top: 12px;
+}
+
+.progress-bar-bg {
+    height: 8px;
+    background: var(--bg);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(to right, var(--primary), var(--secondary));
+    width: 0%;
+    transition: width 0.5s ease;
+}
+
 .mode-btn {
     background: var(--card-light);
     border: 1px solid var(--border);
@@ -536,6 +583,13 @@ input[type="date"], input[type="time"] {
     display: flex;
     align-items: center;
     gap: 8px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.inv-item:hover {
+    transform: translateY(-2px);
+    background: rgba(255,255,255,0.05);
 }
 
 .inv-item.Rare { border-color: #10b981; color: #10b981; }

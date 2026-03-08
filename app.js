@@ -311,14 +311,50 @@ function checkFocusRewards() {
 
 function renderFocusSummary() {
     const todayStart = new Date().setHours(0,0,0,0);
+    const now = new Date();
+    const dayOfWeek = now.getDay(); 
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)).setHours(0,0,0,0);
+
     const todayLogs = state.focusLogs.filter(l => l.timestamp >= todayStart);
+    const weekLogs = state.focusLogs.filter(l => l.timestamp >= weekStart);
+    
     const todayMins = todayLogs.reduce((acc, curr) => acc + curr.duration, 0);
+    const weekMins = weekLogs.reduce((acc, curr) => acc + curr.duration, 0);
+    const totalMins = state.focusLogs.reduce((acc, curr) => acc + curr.duration, 0);
     
-    const h = Math.floor(todayMins / 60);
-    const m = todayMins % 60;
-    
+    // Dashboard Stats
+    const dashboard = document.getElementById("focus-dashboard");
+    if (dashboard) {
+        dashboard.innerHTML = `
+            <div class="stat-card">
+                <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:4px;">本週累計</div>
+                <div style="font-size:1.2rem; font-weight:800; color:var(--primary);">${Math.floor(weekMins/60)}h ${weekMins%60}m</div>
+            </div>
+            <div class="stat-card">
+                <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:4px;">歷史總計</div>
+                <div style="font-size:1.2rem; font-weight:800; color:white;">${Math.floor(totalMins/60)}h ${totalMins%60}m</div>
+            </div>
+        `;
+    }
+
     const summaryEl = document.getElementById("focus-today-total");
-    if (summaryEl) summaryEl.innerText = `${h}h ${m}m`;
+    if (summaryEl) summaryEl.innerText = `${Math.floor(todayMins/60)}h ${todayMins%60}m`;
+
+    // Reward Progress Bar
+    const progressText = document.getElementById("reward-progress-text");
+    const progressBar = document.getElementById("reward-progress-bar");
+    if (progressText && progressBar) {
+        const threshold = 420; // 7 hours
+        const currentProgress = totalMins % threshold;
+        const remaining = threshold - currentProgress;
+        
+        progressText.innerText = `${currentProgress} / ${threshold} min`;
+        progressBar.style.width = `${(currentProgress / threshold) * 100}%`;
+        
+        if (remaining <= 60) {
+            progressText.innerHTML = `<span style="color:#f59e0b; font-weight:bold;">再專注 ${remaining} 分鐘即可獲得獎券！</span>`;
+        }
+    }
 }
 
 // ==========================================
@@ -434,15 +470,76 @@ function renderRewards() {
     }
     
     const sortedInv = [...state.rewards.inventory].sort((a,b) => b.timestamp - a.timestamp);
-    sortedInv.forEach((item, index) => {
+    sortedInv.forEach((item) => {
         const div = document.createElement("div");
         div.className = `inv-item ${item.rarity}`;
+        div.onclick = () => openInventoryEdit(item.timestamp);
         div.innerHTML = `
             <span>${item.prize}</span>
-            <button onclick="consumeItem(${index})" style="background:none; border:none; color:inherit; opacity:0.6; font-size:1rem; cursor:pointer;" title="使用/刪除">✖</button>
+            <span style="opacity:0.6; font-size:0.7rem;">(點擊編輯)</span>
         `;
         list.appendChild(div);
     });
+}
+
+function openInventoryAdd() {
+    document.getElementById("inv-edit-title").innerText = "新增背包內容物";
+    document.getElementById("inv-item-name").value = "";
+    document.getElementById("inv-item-rarity").value = "Rare";
+    document.getElementById("inv-item-ts").value = "";
+    document.getElementById("btn-inv-delete").style.display = "none";
+    openSheet('sheet-inventory-edit');
+}
+
+function openInventoryEdit(ts) {
+    const item = state.rewards.inventory.find(i => i.timestamp === ts);
+    if (!item) return;
+
+    document.getElementById("inv-edit-title").innerText = "編輯背包內容物";
+    document.getElementById("inv-item-name").value = item.prize;
+    document.getElementById("inv-item-rarity").value = item.rarity;
+    document.getElementById("inv-item-ts").value = item.timestamp;
+    document.getElementById("btn-inv-delete").style.display = "block";
+    openSheet('sheet-inventory-edit');
+}
+
+function saveInventoryItem() {
+    const name = document.getElementById("inv-item-name").value.trim();
+    const rarity = document.getElementById("inv-item-rarity").value;
+    const ts = document.getElementById("inv-item-ts").value;
+
+    if (!name) return alert("請輸入獎項名稱");
+
+    if (ts) {
+        // Edit
+        const item = state.rewards.inventory.find(i => i.timestamp == ts);
+        if (item) {
+            item.prize = name;
+            item.rarity = rarity;
+        }
+    } else {
+        // Add
+        if (!state.rewards.inventory) state.rewards.inventory = [];
+        state.rewards.inventory.push({
+            prize: name,
+            rarity: rarity,
+            timestamp: Date.now()
+        });
+    }
+
+    save();
+    renderRewards();
+    closeSheets();
+}
+
+function deleteInventoryItem() {
+    const ts = document.getElementById("inv-item-ts").value;
+    if (ts && confirm("確定要移除這項內容嗎？")) {
+        state.rewards.inventory = state.rewards.inventory.filter(i => i.timestamp != ts);
+        save();
+        renderRewards();
+        closeSheets();
+    }
 }
 
 function consumeItem(index) {
@@ -740,9 +837,9 @@ function openHabitDetails(id) {
     chartHtml += `</div>`;
 
     content.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div style="position: sticky; top: -32px; background: var(--card); z-index: 10; padding: 16px 0; margin: -16px 0 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);">
             <h2 style="margin:0;">管理項目</h2>
-            <button onclick="closeSheets()" style="background:none; border:none; color:var(--text-dim); font-size:1.5rem;">×</button>
+            <button onclick="closeSheets()" style="background:var(--card-light); border:1px solid var(--border); color:var(--text); width:36px; height:36px; border-radius:50%; font-size:1.2rem; display:flex; align-items:center; justify-content:center; cursor:pointer;">×</button>
         </div>
         
         <div class="input-group">
@@ -784,6 +881,7 @@ function openHabitDetails(id) {
         </div>
 
         <div style="margin-top: 32px; border-top: 1px solid var(--border); padding-top: 24px;">
+            <button class="btn-full primary-btn" style="padding:14px; margin-bottom:12px;" onclick="closeSheets()">確認並關閉</button>
             <button class="btn-full" style="background:#ef444422; color:#ef4444; padding:12px;" onclick="deleteHabit(${h.id})">⚠️ 永久刪除此習慣</button>
         </div>
     `;

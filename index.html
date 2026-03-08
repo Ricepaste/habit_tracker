@@ -65,6 +65,21 @@
                 </div>
             </header>
 
+            <div class="focus-dashboard" id="focus-dashboard">
+                <!-- Focus stats across time scales -->
+            </div>
+
+            <div class="reward-status-card" id="reward-status-card">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                    <span style="font-size:0.85rem; font-weight:600;">🎟️ 專注獎勵進度</span>
+                    <span id="reward-progress-text" style="font-size:0.8rem; color:var(--primary);">0 / 420 min</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div id="reward-progress-bar" class="progress-bar-fill"></div>
+                </div>
+                <p style="font-size:0.65rem; color:var(--text-dim); margin-top:6px;">每專注滿 7 小時可獲得 1 張抽獎券</p>
+            </div>
+
             <div class="focus-mode-switcher">
                 <button id="mode-pomo" class="mode-btn active" onclick="setFocusTimerMode('pomodoro')">番茄鐘</button>
                 <button id="mode-stopwatch" class="mode-btn" onclick="setFocusTimerMode('stopwatch')">正向計時</button>
@@ -111,10 +126,14 @@
                     onclick="drawReward()">開始抽獎 (消耗 1 券)</button>
             </div>
 
-            <button class="btn-full" style="background:var(--card-light); margin-top:32px; color:var(--text-dim);"
-                onclick="openSheet('sheet-prize-pool')">⚙️ 管理獎池</button>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:32px;">
+                <button class="btn-full" style="background:var(--card-light); color:var(--text-dim); padding:12px;"
+                    onclick="openSheet('sheet-prize-pool')">⚙️ 獎池</button>
+                <button class="btn-full" style="background:var(--card-light); color:var(--text-dim); padding:12px;"
+                    onclick="openInventoryAdd()">+ 手動新增</button>
+            </div>
 
-            <h3 style="margin-top:32px; font-size:1rem;">我的背包</h3>
+            <h3 style="margin-top:32px; font-size:1rem;">我的背包 (點擊獎項編輯)</h3>
             <div id="inventory-list" class="inventory-list"></div>
         </div>
     </div>
@@ -206,6 +225,30 @@
         </div>
 
         <button class="btn-full primary-btn" style="margin-top:16px;" onclick="savePrizePool()">儲存獎池設定</button>
+        <button class="btn-full" style="background:var(--card-light); margin-top:12px; color:var(--text-dim);"
+            onclick="closeSheets()">取消</button>
+    </div>
+
+    <!-- Sheet: Inventory Edit -->
+    <div id="sheet-inventory-edit" class="sheet">
+        <h2 id="inv-edit-title">編輯背包項目</h2>
+        <div class="input-group">
+            <label>獎項名稱</label>
+            <input type="text" id="inv-item-name">
+        </div>
+        <div class="input-group">
+            <label>稀有度</label>
+            <select id="inv-item-rarity"
+                style="width:100%; background:var(--bg); color:white; border:1px solid var(--border); padding:12px; border-radius:8px;">
+                <option value="Rare">Rare (稀有 - 綠色)</option>
+                <option value="Epic">Epic (史詩 - 藍色)</option>
+                <option value="Legendary">Legendary (傳說 - 橘色)</option>
+            </select>
+        </div>
+        <input type="hidden" id="inv-item-ts">
+        <button class="btn-full primary-btn" style="margin-top:16px;" onclick="saveInventoryItem()">儲存</button>
+        <button id="btn-inv-delete" class="btn-full" style="background:#ef444422; color:#ef4444; margin-top:12px;"
+            onclick="deleteInventoryItem()">移除此項</button>
         <button class="btn-full" style="background:var(--card-light); margin-top:12px; color:var(--text-dim);"
             onclick="closeSheets()">取消</button>
     </div>
