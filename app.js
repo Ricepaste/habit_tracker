@@ -15,7 +15,7 @@ let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
         missTime: { Rare: 0, Epic: 0 },
         inventory: [] // Array of { prize, rarity, timestamp }
     },
-    settings: { theme: 'dark' }
+    settings: { theme: 'dark', wakeLockEnabled: false }
 };
 
 // Migration: Upgrade existing specific data without overriding old
@@ -23,6 +23,8 @@ function migrate() {
     // Port missing Top level structures specifically
     if (!state.focusLogs) state.focusLogs = [];
     if (!state.rewards) state.rewards = { tickets: 0, prizePool: { Rare: ["75 NT"], Epic: ["175 NT", "衣服"], Legendary: ["375 NT", "遊戲"] }, missTime: { Rare: 0, Epic: 0 }, inventory: [] };
+    if (!state.settings) state.settings = { theme: 'dark', wakeLockEnabled: false };
+    if (state.settings.wakeLockEnabled === undefined) state.settings.wakeLockEnabled = false;
     
     // Port old HabitFlowData to V3/V4 if exists
     const oldKey = "habitFlowData";
@@ -158,7 +160,57 @@ let focusTimerMode = 'pomodoro'; // 'pomodoro' | 'stopwatch'
 let focusTimeLeft = 25 * 60; // Countdown if Pomo, Countup if Stopwatch
 const TOTAL_FOCUS_TIME = 25 * 60;
 let focusMode = 'work'; // 'work' | 'rest' (only for Pomo)
-let focusStartTime = null;
+let focusStartTime = null; // timestamp when timer started
+let focusEndTime = null;   // timestamp when pomodoro should end
+let wakeLock = null;      // Screen Wake Lock object
+
+// --- Sound Effects (Synthetic) ---
+function playSound(type) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    const now = ctx.currentTime;
+    
+    if (type === 'start') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(1320, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    } else if (type === 'stop') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.linearRampToValueAtTime(220, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    } else if (type === 'complete') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(660, now);
+        osc.frequency.setValueAtTime(880, now + 0.1);
+        osc.frequency.setValueAtTime(1100, now + 0.2);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    }
+}
+
+function toggleWakeLockPreference(enabled) {
+    state.settings.wakeLockEnabled = enabled;
+    save();
+}
+
+function disableScreenProtection() {
+    document.getElementById("screen-protection-overlay").classList.remove("active");
+}
 
 function setFocusTimerMode(mode) {
     if (focusInterval) {
@@ -188,8 +240,10 @@ function updateFocusDisplay() {
     const totalSeconds = Math.abs(focusTimeLeft);
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
-    document.getElementById("focus-time-display").innerText = 
-        `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    document.getElementById("focus-time-display").innerText = timeStr;
+    const protectedClock = document.getElementById("protected-clock");
+    if (protectedClock) protectedClock.innerText = timeStr;
     
     const progress = document.querySelector(".timer-progress");
     if (!progress) return;
@@ -205,21 +259,46 @@ function updateFocusDisplay() {
     }
 }
 
-function startFocusTimer() {
+async function startFocusTimer() {
     if (focusInterval) return;
     
+    // Request screen wake lock if enabled
+    if (state.settings.wakeLockEnabled && navigator.wakeLock && !wakeLock) {
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakeLock.addEventListener('release', () => console.log('Screen Wake Lock released'));
+            // Show protection overlay
+            document.getElementById("screen-protection-overlay").classList.add("active");
+        } catch (err) {
+            console.error('Wake Lock error:', err.name, err.message);
+        }
+    }
+    
+    playSound('start');
+    
     focusStartTime = Date.now();
+    if (focusTimerMode === 'pomodoro') {
+        // Set the target end time based on remaining seconds
+        focusEndTime = focusStartTime + focusTimeLeft * 1000;
+    } else {
+        // Stopwatch mode: we count up from zero
+        focusEndTime = null;
+    }
     document.getElementById("btn-focus-start").style.display = "none";
     document.getElementById("btn-focus-stop").style.display = "block";
     
     focusInterval = setInterval(() => {
+        const now = Date.now();
         if (focusTimerMode === 'pomodoro') {
-            focusTimeLeft--;
-            if (focusTimeLeft <= 0) {
+            const remaining = Math.max(0, Math.round((focusEndTime - now) / 1000));
+            focusTimeLeft = remaining;
+            if (remaining <= 0) {
                 completeFocusSession();
+                return; // avoid double call after completion
             }
         } else {
-            focusTimeLeft++;
+            // Stopwatch counts up
+            focusTimeLeft = Math.round((now - focusStartTime) / 1000);
         }
         updateFocusDisplay();
     }, 1000);
@@ -230,8 +309,12 @@ function stopFocusTimer() {
         // Already stopped, but we need to reset
         focusTimeLeft = 0;
         updateFocusDisplay();
+        disableScreenProtection();
         return;
     }
+    
+    playSound('stop');
+    disableScreenProtection();
     
     if (focusTimerMode === 'stopwatch' && focusInterval) {
         // Record the time before stopping
@@ -261,6 +344,7 @@ function stopFocusTimer() {
 }
 
 function completeFocusSession() {
+    playSound('complete');
     clearInterval(focusInterval);
     focusInterval = null;
     
@@ -569,6 +653,9 @@ function navigate(view, el) {
     if (view === 'focus') {
         updateFocusDisplay();
         renderFocusSummary();
+        // Sync toggle UI
+        const toggle = document.getElementById("toggle-wake-lock");
+        if (toggle) toggle.checked = state.settings.wakeLockEnabled || false;
     }
     if (view === 'rewards') renderRewards();
 }

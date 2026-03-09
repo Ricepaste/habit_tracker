@@ -96,6 +96,15 @@
                 </div>
             </div>
 
+            <!-- Screen Keep-Alive Controls -->
+            <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:24px;">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-wake-lock" onchange="toggleWakeLockPreference(this.checked)">
+                    <span class="slider"></span>
+                </label>
+                <span style="font-size:0.8rem; color:var(--text-dim);">螢幕長亮 & 護眼模式</span>
+            </div>
+
             <div class="focus-controls">
                 <button id="btn-focus-start" class="btn-full primary-btn" onclick="startFocusTimer()">開始專注</button>
                 <button id="btn-focus-stop" class="btn-full" style="background:#ef444422; color:#ef4444; display:none;"
@@ -266,6 +275,12 @@
                 輸入代碼還原</button>
             <button class="btn-full" style="background: #ef444422; color: #ef4444;" onclick="closeSheets()">取消</button>
         </div>
+    </div>
+
+    <!-- Screen Protection Overlay -->
+    <div id="screen-protection-overlay" class="screen-protection-overlay" onclick="disableScreenProtection()">
+        <div class="protected-clock" id="protected-clock">00:00</div>
+        <p style="font-size:0.7rem; color:#333; margin-top:12px;">點擊螢幕恢復顯示</p>
     </div>
 
     <script src="app.js"></script>

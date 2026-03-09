@@ -595,3 +595,75 @@ input[type="date"], input[type="time"] {
 .inv-item.Rare { border-color: #10b981; color: #10b981; }
 .inv-item.Epic { border-color: #3b82f6; color: #3b82f6; }
 .inv-item.Legendary { border-color: #f59e0b; color: #f59e0b; font-weight: bold; background: rgba(245, 158, 11, 0.1); }
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--card-light);
+  transition: .4s;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--primary);
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* Screen Protection Overlay (OLED Friendly) */
+.screen-protection-overlay {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 2000;
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+
+.screen-protection-overlay.active {
+    display: flex;
+}
+
+.protected-clock {
+    font-size: 6rem;
+    font-weight: 900;
+    color: #111; /* Very dark grey for OLED protection */
+    letter-spacing: -0.05em;
+    user-select: none;
+    text-shadow: 0 0 10px rgba(192, 132, 252, 0.05);
+}
