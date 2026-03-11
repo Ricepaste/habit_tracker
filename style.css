@@ -527,7 +527,9 @@ input[type="date"], input[type="time"] {
 
 .focus-controls {
     display: flex;
-    gap: 16px;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
 }
 
 /* ========================================= */
@@ -595,7 +597,18 @@ input[type="date"], input[type="time"] {
 .inv-item.Rare { border-color: #10b981; color: #10b981; }
 .inv-item.Epic { border-color: #3b82f6; color: #3b82f6; }
 .inv-item.Legendary { border-color: #f59e0b; color: #f59e0b; font-weight: bold; background: rgba(245, 158, 11, 0.1); }
-/* Toggle Switch */
+/* Toggle Switch Config Card */
+.wake-lock-config {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card-light);
+    padding: 16px 20px;
+    border-radius: 20px;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+}
+
 .toggle-switch {
   position: relative;
   display: inline-block;

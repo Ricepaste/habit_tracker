@@ -206,6 +206,16 @@ function playSound(type) {
 function toggleWakeLockPreference(enabled) {
     state.settings.wakeLockEnabled = enabled;
     save();
+    
+    // If timer is running and user turns OFF wake lock, hide the re-enter button
+    const reenterBtn = document.getElementById("btn-focus-reenter");
+    if (reenterBtn) {
+        if (!enabled || !focusInterval) {
+            reenterBtn.style.display = "none";
+        } else if (enabled && focusInterval && !document.getElementById("screen-protection-overlay").classList.contains("active")) {
+            reenterBtn.style.display = "block";
+        }
+    }
 }
 
 async function enableScreenProtection() {
@@ -378,8 +388,7 @@ function stopFocusTimer() {
     
     document.getElementById("btn-focus-start").style.display = "block";
     document.getElementById("btn-focus-stop").style.display = "none";
-    const reenterBtn = document.getElementById("btn-focus-reenter");
-    if (reenterBtn) reenterBtn.style.display = "none";
+    document.getElementById("btn-focus-reenter").style.display = "none";
 }
 
 function completeFocusSession() {
