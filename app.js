@@ -210,6 +210,9 @@ function toggleWakeLockPreference(enabled) {
 
 function disableScreenProtection() {
     document.getElementById("screen-protection-overlay").classList.remove("active");
+    if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+    }
 }
 
 function setFocusTimerMode(mode) {
@@ -266,9 +269,16 @@ async function startFocusTimer() {
     if (state.settings.wakeLockEnabled && navigator.wakeLock && !wakeLock) {
         try {
             wakeLock = await navigator.wakeLock.request('screen');
-            wakeLock.addEventListener('release', () => console.log('Screen Wake Lock released'));
+            wakeLock.addEventListener('release', () => {
+                console.log('Screen Wake Lock released');
+                wakeLock = null;
+            });
             // Show protection overlay
             document.getElementById("screen-protection-overlay").classList.add("active");
+            // Request Fullscreen to hide system status bar and home buttons
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
         } catch (err) {
             console.error('Wake Lock error:', err.name, err.message);
         }
@@ -305,6 +315,11 @@ async function startFocusTimer() {
 }
 
 function stopFocusTimer() {
+    // Release wake lock manually if it exists
+    if (wakeLock) {
+        wakeLock.release().then(() => { wakeLock = null; }).catch(() => { wakeLock = null; });
+    }
+
     if (!focusInterval && focusTimerMode === 'stopwatch' && focusTimeLeft > 0) {
         // Already stopped, but we need to reset
         focusTimeLeft = 0;
@@ -678,6 +693,14 @@ function renderHabits() {
         const todayCount = h.logs.filter(ts => ts >= todayStart && ts <= todayEnd).length;
         const totalCount = h.logs.length;
         
+        // Enhancement: Calculate remaining for ticket
+        let rewardProgressHtml = '';
+        if (h.rewardSettings && h.rewardSettings.enabled) {
+            const threshold = h.rewardSettings.threshold || 10;
+            const remaining = threshold - (totalCount % threshold);
+            rewardProgressHtml = `<div style="font-size: 0.75rem; color: #f59e0b; margin-top: 4px; font-weight: 600;">🎟️ 再累積 ${remaining} 次抽獎券</div>`;
+        }
+        
         const card = document.createElement("div");
         card.className = "habit-card";
         card.innerHTML = `
@@ -685,6 +708,7 @@ function renderHabits() {
                 <div>
                     <div class="habit-name">${h.name}</div>
                     <div class="habit-stats-mini">今日累積 ${todayCount} | 總計 ${totalCount}</div>
+                    ${rewardProgressHtml}
                 </div>
                 <div style="font-size: 1.2rem;">➔</div>
             </div>
