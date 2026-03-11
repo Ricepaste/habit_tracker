@@ -208,10 +208,46 @@ function toggleWakeLockPreference(enabled) {
     save();
 }
 
+async function enableScreenProtection() {
+    if (!state.settings.wakeLockEnabled) return;
+    
+    // Request screen wake lock
+    if (navigator.wakeLock && !wakeLock) {
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakeLock.addEventListener('release', () => {
+                console.log('Screen Wake Lock released');
+                wakeLock = null;
+                // Update UI button if we're in focus view
+                const reenterBtn = document.getElementById("btn-focus-reenter");
+                if (reenterBtn && focusInterval) reenterBtn.style.display = "block";
+            });
+        } catch (err) {
+            console.error('Wake Lock error:', err.name, err.message);
+        }
+    }
+    
+    // Show protection overlay
+    document.getElementById("screen-protection-overlay").classList.add("active");
+    // Request Fullscreen to hide system status bar and home buttons
+    if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    }
+    
+    // Hide re-enter button because we are now protected
+    const reenterBtn = document.getElementById("btn-focus-reenter");
+    if (reenterBtn) reenterBtn.style.display = "none";
+}
+
 function disableScreenProtection() {
     document.getElementById("screen-protection-overlay").classList.remove("active");
     if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
+    }
+    // If timer is still running, show re-enter button
+    const reenterBtn = document.getElementById("btn-focus-reenter");
+    if (reenterBtn && focusInterval && state.settings.wakeLockEnabled) {
+        reenterBtn.style.display = "block";
     }
 }
 
@@ -266,22 +302,8 @@ async function startFocusTimer() {
     if (focusInterval) return;
     
     // Request screen wake lock if enabled
-    if (state.settings.wakeLockEnabled && navigator.wakeLock && !wakeLock) {
-        try {
-            wakeLock = await navigator.wakeLock.request('screen');
-            wakeLock.addEventListener('release', () => {
-                console.log('Screen Wake Lock released');
-                wakeLock = null;
-            });
-            // Show protection overlay
-            document.getElementById("screen-protection-overlay").classList.add("active");
-            // Request Fullscreen to hide system status bar and home buttons
-            if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(() => {});
-            }
-        } catch (err) {
-            console.error('Wake Lock error:', err.name, err.message);
-        }
+    if (state.settings.wakeLockEnabled) {
+        await enableScreenProtection();
     }
     
     playSound('start');
@@ -356,6 +378,8 @@ function stopFocusTimer() {
     
     document.getElementById("btn-focus-start").style.display = "block";
     document.getElementById("btn-focus-stop").style.display = "none";
+    const reenterBtn = document.getElementById("btn-focus-reenter");
+    if (reenterBtn) reenterBtn.style.display = "none";
 }
 
 function completeFocusSession() {

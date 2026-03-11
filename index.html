@@ -107,8 +107,12 @@
 
             <div class="focus-controls">
                 <button id="btn-focus-start" class="btn-full primary-btn" onclick="startFocusTimer()">開始專注</button>
-                <button id="btn-focus-stop" class="btn-full" style="background:#ef444422; color:#ef4444; display:none;"
-                    onclick="stopFocusTimer()">放棄/結束</button>
+                <div style="display:flex; flex-direction:column; width:100%; gap:12px;">
+                    <button id="btn-focus-stop" class="btn-full" style="background:#ef444422; color:#ef4444; display:none;"
+                        onclick="stopFocusTimer()">放棄/結束</button>
+                    <button id="btn-focus-reenter" class="btn-full" style="background:var(--card-light); color:var(--primary); display:none;"
+                        onclick="enableScreenProtection()">進入護眼模式</button>
+                </div>
             </div>
 
             <!-- Manually Backfill Focus -->
