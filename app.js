@@ -1258,26 +1258,44 @@ function forceUpdate() {
 }
 
 // Initialize
-const dateEl = document.getElementById("display-date");
-if (dateEl) {
-    const options = { month: 'long', day: 'numeric', weekday: 'long' };
-    dateEl.innerText = new Date().toLocaleDateString('zh-TW', options);
-}
+(async function init() {
+    const dateEl = document.getElementById("display-date");
+    if (dateEl) {
+        const options = { month: 'long', day: 'numeric', weekday: 'long' };
+        dateEl.innerText = new Date().toLocaleDateString('zh-TW', options);
+    }
 
-migrate();
-renderHabits();
-setupDropZone();
+    // 首次載入：若 localStorage 無資料，自動載入測試資料集
+    const hasExistingData = localStorage.getItem(STORAGE_KEY);
+    if (!hasExistingData) {
+        try {
+            const resp = await fetch('./test_data.json');
+            if (resp.ok) {
+                const testData = await resp.json();
+                state = testData;
+                save();
+                console.log('已載入測試資料集 (test_data.json)');
+            }
+        } catch (e) {
+            console.log('無測試資料可用，使用預設空白狀態');
+        }
+    }
 
-// PWA: Automatic Update Reload
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(reg => {
-        reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    window.location.reload();
-                }
+    migrate();
+    renderHabits();
+    setupDropZone();
+
+    // PWA: Automatic Update Reload
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').then(reg => {
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        window.location.reload();
+                    }
+                });
             });
         });
-    });
-}
+    }
+})();
