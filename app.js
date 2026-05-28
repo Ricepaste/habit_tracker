@@ -1258,7 +1258,7 @@ function forceUpdate() {
 }
 
 // Initialize
-(async function init() {
+(function init() {
     const dateEl = document.getElementById("display-date");
     if (dateEl) {
         const options = { month: 'long', day: 'numeric', weekday: 'long' };
@@ -1267,18 +1267,10 @@ function forceUpdate() {
 
     // 首次載入：若 localStorage 無資料，自動載入測試資料集
     const hasExistingData = localStorage.getItem(STORAGE_KEY);
-    if (!hasExistingData) {
-        try {
-            const resp = await fetch('./test_data.json');
-            if (resp.ok) {
-                const testData = await resp.json();
-                state = testData;
-                save();
-                console.log('已載入測試資料集 (test_data.json)');
-            }
-        } catch (e) {
-            console.log('無測試資料可用，使用預設空白狀態');
-        }
+    if (!hasExistingData && window.__HABITFLOW_TEST_DATA__) {
+        state = window.__HABITFLOW_TEST_DATA__;
+        save();
+        console.log('已載入測試資料集');
     }
 
     migrate();
