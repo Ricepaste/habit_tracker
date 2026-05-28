@@ -1086,19 +1086,161 @@ function copyToClipboardData() {
     navigator.clipboard.writeText(text).then(() => alert('JSON 代碼已複製！'));
 }
 
+function validateAndImportData(jsonString, sourceLabel) {
+    let imported;
+    try {
+        imported = JSON.parse(jsonString);
+    } catch (err) {
+        return { ok: false, error: 'JSON 格式解析失敗，請確認檔案內容是否完整。' };
+    }
+
+    if (!imported || typeof imported !== 'object') {
+        return { ok: false, error: '檔案內容不是有效的 HabitFlow Pro 資料格式。' };
+    }
+
+    if (!Array.isArray(imported.habits)) {
+        return { ok: false, error: '資料缺少 habits 陣列，這不是有效的備份檔。' };
+    }
+
+    // 補完缺失的頂層欄位，確保舊版備份也能匯入
+    if (!Array.isArray(imported.focusLogs)) imported.focusLogs = [];
+    if (!imported.rewards || typeof imported.rewards !== 'object') {
+        imported.rewards = {
+            tickets: 0,
+            prizePool: { Rare: ["75 NT"], Epic: ["175 NT", "衣服"], Legendary: ["375 NT", "遊戲"] },
+            missTime: { Rare: 0, Epic: 0 },
+            inventory: []
+        };
+    } else {
+        if (!imported.rewards.prizePool || typeof imported.rewards.prizePool !== 'object') {
+            imported.rewards.prizePool = { Rare: ["75 NT"], Epic: ["175 NT", "衣服"], Legendary: ["375 NT", "遊戲"] };
+        }
+        if (!imported.rewards.missTime || typeof imported.rewards.missTime !== 'object') {
+            imported.rewards.missTime = { Rare: 0, Epic: 0 };
+        }
+        if (!Array.isArray(imported.rewards.inventory)) imported.rewards.inventory = [];
+        if (typeof imported.rewards.tickets !== 'number') imported.rewards.tickets = 0;
+        if (typeof imported.rewards.lifetimeFocusTickets !== 'number') imported.rewards.lifetimeFocusTickets = 0;
+    }
+    if (!imported.settings || typeof imported.settings !== 'object') {
+        imported.settings = { theme: 'dark', wakeLockEnabled: false };
+    } else {
+        if (imported.settings.wakeLockEnabled === undefined) imported.settings.wakeLockEnabled = false;
+    }
+
+    // 確保每個 habit 都有 rewardSettings
+    imported.habits.forEach(h => {
+        if (!h.rewardSettings) h.rewardSettings = { enabled: false, threshold: 10 };
+    });
+
+    return { ok: true, data: imported };
+}
+
+function importFromData(jsonString, sourceLabel) {
+    const result = validateAndImportData(jsonString, sourceLabel);
+    if (!result.ok) {
+        return result;
+    }
+
+    state = result.data;
+    save();
+    migrate();
+    save();
+    renderHabits();
+    closeSheets();
+    return { ok: true };
+}
+
 function importFromText() {
     const text = prompt('請貼上備份 JSON 代碼：');
     if (!text) return;
-    try {
-        const imported = JSON.parse(text);
-        if (imported.habits) {
-            state = imported;
-            save();
-            renderHabits();
-            closeSheets();
-            alert('還原成功！');
+    const result = importFromData(text, '剪貼簿');
+    if (!result.ok) {
+        alert(result.error);
+    } else {
+        alert('還原成功！');
+    }
+}
+
+// Drag & Drop + File Import
+function handleImportFile(file) {
+    const fb = document.getElementById('drop-feedback');
+    if (!file.name.toLowerCase().endsWith('.json')) {
+        fb.className = 'drop-feedback error';
+        fb.textContent = '僅接受 .json 備份檔案，請重新選擇。';
+        fb.style.display = 'block';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const result = importFromData(e.target.result, file.name);
+        fb.style.display = 'block';
+        if (result.ok) {
+            fb.className = 'drop-feedback success';
+            fb.textContent = `已成功從「${file.name}」還原資料！`;
+        } else {
+            fb.className = 'drop-feedback error';
+            fb.textContent = result.error;
         }
-    } catch (err) { alert('無效的代碼'); }
+    };
+    reader.onerror = () => {
+        fb.className = 'drop-feedback error';
+        fb.textContent = '檔案讀取失敗，請再試一次。';
+        fb.style.display = 'block';
+    };
+    reader.readAsText(file);
+}
+
+function setupDropZone() {
+    const zone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fb = document.getElementById('drop-feedback');
+    if (!zone || !fileInput) return;
+
+    // 點擊開啟檔案選擇器
+    zone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            handleImportFile(fileInput.files[0]);
+            fileInput.value = '';
+        }
+    });
+
+    // 阻止預設拖曳行為（防止瀏覽器直接開啟檔案）
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+        zone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        document.body.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+
+    zone.addEventListener('dragenter', () => {
+        zone.classList.add('drag-over');
+    });
+
+    zone.addEventListener('dragover', () => {
+        zone.classList.add('drag-over');
+    });
+
+    zone.addEventListener('dragleave', (e) => {
+        if (!zone.contains(e.relatedTarget)) {
+            zone.classList.remove('drag-over');
+        }
+    });
+
+    zone.addEventListener('drop', (e) => {
+        zone.classList.remove('drag-over');
+        fb.style.display = 'none';
+        if (e.dataTransfer.files.length > 0) {
+            handleImportFile(e.dataTransfer.files[0]);
+        }
+    });
 }
 
 function forceUpdate() {
@@ -1116,25 +1258,36 @@ function forceUpdate() {
 }
 
 // Initialize
-const dateEl = document.getElementById("display-date");
-if (dateEl) {
-    const options = { month: 'long', day: 'numeric', weekday: 'long' };
-    dateEl.innerText = new Date().toLocaleDateString('zh-TW', options);
-}
+(function init() {
+    const dateEl = document.getElementById("display-date");
+    if (dateEl) {
+        const options = { month: 'long', day: 'numeric', weekday: 'long' };
+        dateEl.innerText = new Date().toLocaleDateString('zh-TW', options);
+    }
 
-migrate();
-renderHabits();
+    // 首次載入：若 localStorage 無資料，自動載入測試資料集
+    const hasExistingData = localStorage.getItem(STORAGE_KEY);
+    if (!hasExistingData && window.__HABITFLOW_TEST_DATA__) {
+        state = window.__HABITFLOW_TEST_DATA__;
+        save();
+        console.log('已載入測試資料集');
+    }
 
-// PWA: Automatic Update Reload
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(reg => {
-        reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    window.location.reload();
-                }
+    migrate();
+    renderHabits();
+    setupDropZone();
+
+    // PWA: Automatic Update Reload
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').then(reg => {
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        window.location.reload();
+                    }
+                });
             });
         });
-    });
-}
+    }
+})();

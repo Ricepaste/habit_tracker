@@ -275,8 +275,17 @@
                 onclick="copyToClipboardData()">📋 複製代碼模式</button>
             <button class="btn-full" style="background: var(--card-light); color: white;" onclick="importFromText()">📥
                 輸入代碼還原</button>
-            <button class="btn-full" style="background: #ef444422; color: #ef4444;" onclick="closeSheets()">取消</button>
         </div>
+
+        <div class="drop-zone" id="drop-zone">
+            <div class="drop-zone-icon">📂</div>
+            <div class="drop-zone-text">拖曳 .json 備份檔到這裡</div>
+            <div class="drop-zone-hint">或點擊此區域選取檔案</div>
+            <input type="file" id="file-input" accept=".json" style="display:none;">
+            <div id="drop-feedback" class="drop-feedback" style="display:none;"></div>
+        </div>
+
+        <button class="btn-full" style="background: #ef444422; color: #ef4444; margin-top:12px;" onclick="closeSheets()">取消</button>
     </div>
 
     <!-- Screen Protection Overlay -->
@@ -285,6 +294,7 @@
         <p style="font-size:0.7rem; color:#333; margin-top:12px;">點擊螢幕恢復顯示</p>
     </div>
 
+    <script src="test_data.js"></script>
     <script src="app.js"></script>
 </body>
 
