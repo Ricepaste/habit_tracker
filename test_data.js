@@ -1,105 +1,93 @@
-// HabitFlow Pro — 測試資料集
+// HabitFlow Pro — 測試資料集（相對時間，永久有效）
 // 首次載入時若 localStorage 為空，將自動使用此資料
-window.__HABITFLOW_TEST_DATA__ = {
-  "habits": [
-    {
-      "id": 1001,
-      "name": "每日閱讀",
-      "logs": [
-        1777543200000, 1777575600000, 1777647600000, 1777723200000, 1777741200000,
-        1777798800000, 1777827600000, 1777914000000, 1777914000000, 1777982400000,
-        1777993200000, 1778061600000, 1778148000000, 1778155200000, 1778238000000,
-        1778241600000, 1778328000000, 1778421600000, 1778439600000, 1778486400000,
-        1778526000000, 1778594400000, 1778598000000, 1778673600000, 1778749200000,
-        1778785200000, 1778839200000, 1778846400000, 1778932800000, 1779033600000,
-        1779112800000, 1779184800000, 1779271200000, 1779375600000, 1779444000000,
-        1779462000000, 1779530400000, 1779544800000, 1779634800000, 1779634800000,
-        1779724800000, 1779793200000, 1779793200000, 1779868800000, 1779894000000
-      ],
-      "createdAt": "2026-04-30T00:00:00.000Z",
-      "rewardSettings": { "enabled": true, "threshold": 10, "lifetimeTickets": 4 }
-    },
-    {
-      "id": 1002,
-      "name": "深蹲運動",
-      "logs": [
-        1777546800000, 1777554000000, 1777561200000, 1777564800000, 1777622400000,
-        1777629600000, 1777644000000, 1777654800000, 1777712400000, 1777741200000,
-        1777744800000, 1777748400000, 1777806000000, 1777820400000, 1777824000000,
-        1777824000000, 1777831200000, 1777885200000, 1777885200000, 1777903200000,
-        1777903200000, 1777914000000, 1777917600000, 1777986000000, 1777986000000,
-        1777989600000, 1777996800000, 1778000400000, 1778007600000, 1778058000000,
-        1778061600000, 1778072400000, 1778072400000, 1778079600000, 1778083200000,
-        1778148000000, 1778162400000, 1778169600000, 1778180400000, 1778238000000,
-        1778241600000, 1778245200000, 1778256000000, 1778263200000, 1778324400000,
-        1778331600000, 1778335200000, 1778342400000, 1778421600000, 1778428800000,
-        1778428800000, 1778432400000, 1778486400000, 1778493600000, 1778497200000,
-        1778500800000, 1778515200000, 1778522400000, 1778572800000, 1778587200000,
-        1778587200000, 1778601600000, 1778670000000, 1778673600000, 1778695200000,
-        1778749200000, 1778749200000, 1778752800000, 1778752800000, 1778767200000,
-        1778785200000, 1778832000000, 1778835600000, 1778835600000, 1778842800000,
-        1778842800000, 1778925600000, 1778950800000, 1778958000000, 1778958000000,
-        1779004800000, 1779022800000, 1779026400000, 1779033600000, 1779091200000,
-        1779102000000, 1779123600000, 1779127200000, 1779130800000, 1779177600000,
-        1779181200000, 1779195600000, 1779278400000, 1779282000000, 1779303600000,
-        1779303600000, 1779361200000, 1779361200000, 1779361200000, 1779390000000,
-        1779447600000, 1779462000000, 1779469200000, 1779537600000, 1779537600000,
-        1779548400000, 1779627600000, 1779645600000, 1779645600000, 1779699600000,
-        1779703200000, 1779717600000, 1779800400000, 1779818400000, 1779822000000,
-        1779876000000, 1779883200000, 1779886800000, 1779890400000, 1779904800000
-      ],
-      "createdAt": "2026-04-30T00:00:00.000Z",
-      "rewardSettings": { "enabled": true, "threshold": 20, "lifetimeTickets": 6 }
-    },
-    {
-      "id": 1003,
-      "name": "冥想練習",
-      "logs": [
-        1778760000000, 1778853600000, 1778871600000, 1778943600000, 1779037200000,
-        1779123600000, 1779213600000, 1779282000000, 1779382800000, 1779469200000,
-        1779555600000, 1779631200000, 1779714000000, 1779786000000, 1779894000000
-      ],
-      "createdAt": "2026-05-14T00:00:00.000Z",
-      "rewardSettings": { "enabled": false, "threshold": 10 }
-    },
-    {
-      "id": 1004,
-      "name": "日記寫作",
-      "logs": [
-        1779289200000, 1779375600000, 1779436800000, 1779552000000,
-        1779649200000, 1779714000000, 1779814800000, 1779868800000
-      ],
-      "createdAt": "2026-05-20T00:00:00.000Z",
-      "rewardSettings": { "enabled": true, "threshold": 5, "lifetimeTickets": 1 }
+(function() {
+  const NOW = Date.now();
+  const DAY = 86400000;
+  const HOUR = 3600000;
+  const TODAY_MIDNIGHT = new Date().setHours(0,0,0,0);
+
+  // 產生指定日期與小時的 timestamp
+  function ts(daysAgo, hour) {
+    return TODAY_MIDNIGHT - daysAgo * DAY + (hour || 12) * HOUR;
+  }
+
+  // 均勻分配 N 筆紀錄到指定天數範圍內
+  function distribute(count, startDay, spanDays, perDay) {
+    const result = [];
+    let remaining = count;
+    for (let d = startDay; d < startDay + spanDays && remaining > 0; d++) {
+      const n = Math.min(remaining, perDay);
+      for (let i = 0; i < n; i++) {
+        result.push(ts(d, 8 + i * 3));
+      }
+      remaining -= n;
     }
-  ],
-  "focusLogs": [
-    { "timestamp": 1779354000000, "duration": 45 },
-    { "timestamp": 1779444000000, "duration": 30 },
-    { "timestamp": 1779544800000, "duration": 60 },
-    { "timestamp": 1779609600000, "duration": 25 },
-    { "timestamp": 1779634800000, "duration": 50 },
-    { "timestamp": 1779699600000, "duration": 35 },
-    { "timestamp": 1779724800000, "duration": 55 },
-    { "timestamp": 1779789600000, "duration": 40 },
-    { "timestamp": 1779804000000, "duration": 45 },
-    { "timestamp": 1779868800000, "duration": 30 }
-  ],
-  "rewards": {
-    "tickets": 3,
-    "prizePool": {
-      "Rare": ["75 NT", "一杯珍奶", "零食一包"],
-      "Epic": ["175 NT", "一本書", "電影票"],
-      "Legendary": ["375 NT", "遊戲", "大餐一頓"]
-    },
-    "missTime": { "Rare": 2, "Epic": 5 },
-    "inventory": [
-      { "prize": "75 NT", "rarity": "Rare", "timestamp": 1779537600000 },
-      { "prize": "一杯珍奶", "rarity": "Rare", "timestamp": 1779624000000 },
-      { "prize": "175 NT", "rarity": "Epic", "timestamp": 1779710400000 },
-      { "prize": "375 NT", "rarity": "Legendary", "timestamp": 1779796800000 }
+    return result;
+  }
+
+  window.__HABITFLOW_TEST_DATA__ = {
+    habits: [
+      {
+        id: 1001,
+        name: "每日閱讀",
+        // 過去 28 天，平均每天 1~2 筆
+        logs: distribute(45, 0, 28, 2),
+        createdAt: new Date(NOW - 28 * DAY).toISOString(),
+        rewardSettings: { enabled: true, threshold: 10, lifetimeTickets: 4 }
+      },
+      {
+        id: 1002,
+        name: "深蹲運動",
+        // 過去 28 天，平均每天 4 筆
+        logs: distribute(120, 0, 28, 5),
+        createdAt: new Date(NOW - 28 * DAY).toISOString(),
+        rewardSettings: { enabled: true, threshold: 20, lifetimeTickets: 6 }
+      },
+      {
+        id: 1003,
+        name: "冥想練習",
+        // 過去 14 天，每天 1 筆 + 最後一天多 1 筆
+        logs: distribute(15, 0, 14, 2),
+        createdAt: new Date(NOW - 14 * DAY).toISOString(),
+        rewardSettings: { enabled: false, threshold: 10 }
+      },
+      {
+        id: 1004,
+        name: "日記寫作",
+        // 過去 8 天，每天 1 筆
+        logs: distribute(8, 0, 8, 1),
+        createdAt: new Date(NOW - 8 * DAY).toISOString(),
+        rewardSettings: { enabled: true, threshold: 5, lifetimeTickets: 1 }
+      }
     ],
-    "lifetimeFocusTickets": 1
-  },
-  "settings": { "theme": "dark", "wakeLockEnabled": false }
-};
+    focusLogs: [
+      { timestamp: ts(7, 9),  duration: 45 },
+      { timestamp: ts(6, 10), duration: 30 },
+      { timestamp: ts(5, 14), duration: 60 },
+      { timestamp: ts(4, 8),  duration: 25 },
+      { timestamp: ts(4, 15), duration: 50 },
+      { timestamp: ts(3, 9),  duration: 35 },
+      { timestamp: ts(3, 16), duration: 55 },
+      { timestamp: ts(2, 10), duration: 40 },
+      { timestamp: ts(2, 14), duration: 45 },
+      { timestamp: ts(1, 8),  duration: 30 }
+    ],
+    rewards: {
+      tickets: 3,
+      prizePool: {
+        Rare:      ["75 NT", "一杯珍奶", "零食一包"],
+        Epic:      ["175 NT", "一本書", "電影票"],
+        Legendary: ["375 NT", "遊戲", "大餐一頓"]
+      },
+      missTime: { Rare: 2, Epic: 5 },
+      inventory: [
+        { prize: "75 NT",    rarity: "Rare",      timestamp: ts(5, 12) },
+        { prize: "一杯珍奶",  rarity: "Rare",      timestamp: ts(4, 12) },
+        { prize: "175 NT",   rarity: "Epic",      timestamp: ts(3, 12) },
+        { prize: "375 NT",   rarity: "Legendary", timestamp: ts(2, 12) }
+      ],
+      lifetimeFocusTickets: 0
+    },
+    settings: { theme: "dark", wakeLockEnabled: false }
+  };
+})();
