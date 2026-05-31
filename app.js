@@ -990,8 +990,11 @@ function addBackLog(habitId) {
 }
 
 function saveFocusRewardSettings() {
-    const h = parseInt(document.getElementById("focus-reward-hours").value);
-    const m = parseInt(document.getElementById("focus-reward-minutes").value);
+    const hoursInput = document.getElementById("focus-reward-hours");
+    const minutesInput = document.getElementById("focus-reward-minutes");
+    if (!hoursInput || !minutesInput) return;
+    const h = parseInt(hoursInput.value);
+    const m = parseInt(minutesInput.value);
     state.settings.focusRewardHours = Math.max(0, isNaN(h) ? 7 : h);
     state.settings.focusRewardMinutes = Math.max(0, Math.min(59, isNaN(m) ? 0 : m));
     if (getFocusRewardThreshold() <= 0) {
@@ -1001,6 +1004,111 @@ function saveFocusRewardSettings() {
     save();
     checkFocusRewards();
     renderFocusSummary();
+    // 若 details sheet 開啟中則刷新
+    if (document.getElementById("sheet-focus-details").classList.contains("open")) {
+        openFocusDetails();
+    }
+}
+
+function openFocusDetails() {
+    const content = document.getElementById("focus-details-content");
+    if (!content) return;
+
+    const ONE_DAY = 86400000;
+    const dayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+    // --- Weekly focus trend (last 7 days) ---
+    const dailyMins = Array(7).fill(0);
+    state.focusLogs.forEach(log => {
+        const logDayStart = new Date(new Date(log.timestamp).getFullYear(), new Date(log.timestamp).getMonth(), new Date(log.timestamp).getDate()).getTime();
+        const dayDiff = Math.floor((todayStart - logDayStart) / ONE_DAY);
+        if (dayDiff >= 0 && dayDiff < 7) dailyMins[6 - dayDiff] += log.duration;
+    });
+
+    const maxMins = Math.max(...dailyMins, 1);
+    let chartHtml = `<div class="bar-grid" style="margin-top:10px; height:100px;">`;
+    for (let i = 0; i < 7; i++) {
+        const labelDate = new Date(todayStart - (6 - i) * ONE_DAY);
+        const label = dayLabels[labelDate.getDay()];
+        const height = Math.max((dailyMins[i] / maxMins) * 100, 2);
+        chartHtml += `
+            <div class="bar-wrap">
+                <div style="font-size:0.7rem; color:var(--primary); margin-bottom:4px; opacity:${dailyMins[i]>0?1:0}">${dailyMins[i]}m</div>
+                <div class="bar" style="height:${height}%"></div>
+                <div class="bar-label">${label}</div>
+            </div>`;
+    }
+    chartHtml += `</div>`;
+
+    // --- Recent focus records ---
+    const sortedLogs = [...state.focusLogs].sort((a, b) => b.timestamp - a.timestamp);
+    let historyHtml = '';
+    if (sortedLogs.length > 0) {
+        historyHtml = sortedLogs.slice(0, 50).map(log => {
+            const d = new Date(log.timestamp);
+            const dateStr = d.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
+            const timeStr = d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+            return `
+                <div class="history-item">
+                    <div><strong>${dateStr}</strong> <span>${timeStr}</span></div>
+                    <div style="color:var(--primary); font-weight:600;">${log.duration} 分鐘</div>
+                </div>`;
+        }).join("");
+    }
+
+    // --- Build full sheet ---
+    const h = state.settings.focusRewardHours || 7;
+    const m = state.settings.focusRewardMinutes || 0;
+
+    content.innerHTML = `
+        <div style="position:sticky; top:-32px; background:var(--card); z-index:10; padding:16px 0; margin:-16px 0 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border);">
+            <h2 style="margin:0;">專注管理</h2>
+            <button onclick="closeSheets()" style="background:var(--card-light); border:1px solid var(--border); color:var(--text); width:36px; height:36px; border-radius:50%; font-size:1.2rem; display:flex; align-items:center; justify-content:center; cursor:pointer;">×</button>
+        </div>
+
+        <div class="backfill-section" style="margin-top:0;">
+            <label style="font-size:0.8rem; font-weight:700; color:var(--text-dim);">📊 本週專注趨勢</label>
+            ${chartHtml}
+        </div>
+
+        <div class="backfill-section">
+            <label style="font-size:0.8rem; font-weight:700; color:var(--primary);">🎯 獎勵門檻設定</label>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px;">
+                <input type="number" id="focus-reward-hours" min="0" max="999" value="${h}"
+                    style="width:56px; padding:8px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center;">
+                <span style="font-size:0.9rem;">小時</span>
+                <input type="number" id="focus-reward-minutes" min="0" max="59" value="${m}"
+                    style="width:56px; padding:8px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center;">
+                <span style="font-size:0.9rem;">分鐘</span>
+                <button onclick="saveFocusRewardSettings()"
+                    style="background:var(--primary); color:white; border:none; padding:8px 14px; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer;">儲存</button>
+            </div>
+            <p style="font-size:0.65rem; color:var(--text-dim); margin-top:8px;">每專注滿 ${formatFocusThreshold()} 可獲得 1 張抽獎券</p>
+        </div>
+
+        ${sortedLogs.length > 0 ? `
+        <label style="font-size:0.8rem; color:var(--text-dim); display:block; margin-top:24px; margin-bottom:8px;">最近 50 筆專注紀錄</label>
+        <div class="log-history">${historyHtml}</div>` : ''}
+
+        <div class="backfill-section">
+            <label style="font-size:0.8rem; font-weight:700; color:var(--primary);">🕒 手動補登專注時間</label>
+            <div class="backfill-controls">
+                <input type="date" id="focus-details-backlog-date" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div style="margin-top:8px;">
+                <input type="number" id="focus-details-backlog-duration" value="25" min="1" placeholder="分鐘數"
+                    style="width:100%; padding:12px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center; font-size:0.9rem;">
+            </div>
+            <button class="btn-full primary-btn" style="margin-top:12px; padding:12px; font-size:0.9rem;" onclick="addFocusBackLogFromDetails()">確認補登</button>
+        </div>
+
+        <div style="margin-top:32px; border-top:1px solid var(--border); padding-top:24px;">
+            <button class="btn-full primary-btn" style="padding:14px;" onclick="closeSheets()">確認並關閉</button>
+        </div>
+    `;
+    openSheet("sheet-focus-details");
 }
 
 function addFocusBackLog() {
@@ -1019,6 +1127,26 @@ function addFocusBackLog() {
     
     renderFocusSummary();
     closeSheets();
+    alert("專注時間補登成功！");
+}
+
+function addFocusBackLogFromDetails() {
+    const dateInput = document.getElementById("focus-details-backlog-date");
+    const durationInput = parseInt(document.getElementById("focus-details-backlog-duration").value) || 25;
+
+    if (!dateInput || !dateInput.value) {
+        alert("請選擇補登日期");
+        return;
+    }
+
+    const timestamp = new Date(`${dateInput.value}T12:00`).getTime();
+    state.focusLogs.push({ timestamp, duration: durationInput });
+    checkFocusRewards();
+    save();
+
+    renderFocusSummary();
+    // 刷新 details sheet
+    openFocusDetails();
     alert("專注時間補登成功！");
 }
 

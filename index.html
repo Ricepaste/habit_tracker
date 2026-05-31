@@ -69,28 +69,19 @@
                 <!-- Focus stats across time scales -->
             </div>
 
-            <div class="reward-status-card" id="reward-status-card">
-                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                    <span style="font-size:0.85rem; font-weight:600;">🎟️ 專注獎勵進度</span>
-                    <span id="reward-progress-text" style="font-size:0.8rem; color:var(--primary);">0 / 420 min</span>
-                </div>
-                <div class="progress-bar-bg">
-                    <div id="reward-progress-bar" class="progress-bar-fill"></div>
-                </div>
-                <p id="reward-threshold-label" style="font-size:0.65rem; color:var(--text-dim); margin-top:6px;">每專注滿 7 小時可獲得 1 張抽獎券</p>
-            </div>
-
-            <div class="reward-status-card" style="margin-top:12px;">
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <span style="font-size:0.8rem; font-weight:600;">🎯 獎勵門檻</span>
-                    <input type="number" id="focus-reward-hours" min="0" max="999" value="7"
-                        style="width:56px; padding:6px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center; font-size:0.85rem;">
-                    <span style="font-size:0.8rem; color:var(--text-dim);">小時</span>
-                    <input type="number" id="focus-reward-minutes" min="0" max="59" value="0"
-                        style="width:56px; padding:6px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center; font-size:0.85rem;">
-                    <span style="font-size:0.8rem; color:var(--text-dim);">分鐘</span>
-                    <button onclick="saveFocusRewardSettings()"
-                        style="background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:0.75rem; font-weight:600; cursor:pointer;">儲存</button>
+            <div class="reward-status-card" id="reward-status-card" onclick="openFocusDetails()" style="cursor:pointer;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div style="flex:1;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                            <span style="font-size:0.85rem; font-weight:600;">🎟️ 專注獎勵進度</span>
+                            <span id="reward-progress-text" style="font-size:0.8rem; color:var(--primary);">0 / 420 min</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div id="reward-progress-bar" class="progress-bar-fill"></div>
+                        </div>
+                        <p id="reward-threshold-label" style="font-size:0.65rem; color:var(--text-dim); margin-top:6px;">每專注滿 7 小時可獲得 1 張抽獎券</p>
+                    </div>
+                    <div style="font-size:1.2rem; margin-left:12px; color:var(--text-dim);">➔</div>
                 </div>
             </div>
 
@@ -127,9 +118,6 @@
                     onclick="stopFocusTimer()">結束專注</button>
             </div>
 
-            <!-- Manually Backfill Focus -->
-            <button class="btn-full" style="background:var(--card-light); margin-top:32px; color:var(--text-dim);"
-                onclick="openSheet('sheet-focus-backfill')">+ 手動補登專注時間</button>
         </div>
 
         <!-- View: Rewards -->
@@ -226,6 +214,11 @@
         <button class="btn-full primary-btn" style="margin-top:16px;" onclick="addFocusBackLog()">確認補登</button>
         <button class="btn-full" style="background:var(--card-light); margin-top:12px; color:var(--text-dim);"
             onclick="closeSheets()">取消</button>
+    </div>
+
+    <!-- Sheet: Focus Details -->
+    <div id="sheet-focus-details" class="sheet">
+        <div id="focus-details-content"></div>
     </div>
 
     <!-- Sheet: Prize Pool Management -->
