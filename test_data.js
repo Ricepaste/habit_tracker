@@ -33,7 +33,7 @@
         // 過去 28 天，平均每天 1~2 筆
         logs: distribute(45, 0, 28, 2),
         createdAt: new Date(NOW - 28 * DAY).toISOString(),
-        rewardSettings: { enabled: true, threshold: 10, lifetimeTickets: 4 }
+        rewardSettings: { enabled: true, threshold: 10, cardsCompleted: 4, currentProgress: 5 }
       },
       {
         id: 1002,
@@ -41,7 +41,7 @@
         // 過去 28 天，平均每天 4 筆
         logs: distribute(120, 0, 28, 5),
         createdAt: new Date(NOW - 28 * DAY).toISOString(),
-        rewardSettings: { enabled: true, threshold: 20, lifetimeTickets: 6 }
+        rewardSettings: { enabled: true, threshold: 20, cardsCompleted: 6, currentProgress: 0 }
       },
       {
         id: 1003,
@@ -57,7 +57,7 @@
         // 過去 8 天，每天 1 筆
         logs: distribute(8, 0, 8, 1),
         createdAt: new Date(NOW - 8 * DAY).toISOString(),
-        rewardSettings: { enabled: true, threshold: 5, lifetimeTickets: 1 }
+        rewardSettings: { enabled: true, threshold: 5, cardsCompleted: 1, currentProgress: 3 }
       }
     ],
     focusLogs: [

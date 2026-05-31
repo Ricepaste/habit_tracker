@@ -77,7 +77,21 @@
                 <div class="progress-bar-bg">
                     <div id="reward-progress-bar" class="progress-bar-fill"></div>
                 </div>
-                <p style="font-size:0.65rem; color:var(--text-dim); margin-top:6px;">每專注滿 7 小時可獲得 1 張抽獎券</p>
+                <p id="reward-threshold-label" style="font-size:0.65rem; color:var(--text-dim); margin-top:6px;">每專注滿 7 小時可獲得 1 張抽獎券</p>
+            </div>
+
+            <div class="reward-status-card" style="margin-top:12px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="font-size:0.8rem; font-weight:600;">🎯 獎勵門檻</span>
+                    <input type="number" id="focus-reward-hours" min="0" max="999" value="7"
+                        style="width:56px; padding:6px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center; font-size:0.85rem;">
+                    <span style="font-size:0.8rem; color:var(--text-dim);">小時</span>
+                    <input type="number" id="focus-reward-minutes" min="0" max="59" value="0"
+                        style="width:56px; padding:6px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center; font-size:0.85rem;">
+                    <span style="font-size:0.8rem; color:var(--text-dim);">分鐘</span>
+                    <button onclick="saveFocusRewardSettings()"
+                        style="background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:0.75rem; font-weight:600; cursor:pointer;">儲存</button>
+                </div>
             </div>
 
             <div class="focus-mode-switcher">

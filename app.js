@@ -15,7 +15,7 @@ let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
         missTime: { Rare: 0, Epic: 0 },
         inventory: [] // Array of { prize, rarity, timestamp }
     },
-    settings: { theme: 'dark', wakeLockEnabled: false }
+    settings: { theme: 'dark', wakeLockEnabled: false, focusRewardHours: 7, focusRewardMinutes: 0 }
 };
 
 // Migration: Upgrade existing specific data without overriding old
@@ -24,8 +24,10 @@ function migrate() {
     if (!state.focusLogs) state.focusLogs = [];
     if (!state.rewards) state.rewards = { tickets: 0, prizePool: { Rare: ["75 NT"], Epic: ["175 NT", "衣服"], Legendary: ["375 NT", "遊戲"] }, missTime: { Rare: 0, Epic: 0 }, inventory: [] };
     if (!state.settings) state.settings = { theme: 'dark', wakeLockEnabled: false };
-    if (state.settings.wakeLockEnabled === undefined) state.settings.wakeLockEnabled = false;
-    
+    if (!state.settings.wakeLockEnabled) state.settings.wakeLockEnabled = false;
+    if (state.settings.focusRewardHours === undefined) state.settings.focusRewardHours = 7;
+    if (state.settings.focusRewardMinutes === undefined) state.settings.focusRewardMinutes = 0;
+
     // Port old HabitFlowData to V3/V4 if exists
     const oldKey = "habitFlowData";
     const oldDataString = localStorage.getItem(oldKey);
@@ -65,11 +67,23 @@ function migrate() {
         }
     }
     
-    // Ensure all existing habits have rewardSettings
+    // Ensure all existing habits have rewardSettings + card system fields
     let modified = false;
     state.habits.forEach(h => {
         if (!h.rewardSettings) {
             h.rewardSettings = { enabled: false, threshold: 10 };
+            modified = true;
+        }
+        // Migrate old lifetimeTickets to card-based system
+        const rs = h.rewardSettings;
+        if (rs.lifetimeTickets !== undefined && rs.cardsCompleted === undefined) {
+            rs.cardsCompleted = rs.lifetimeTickets || 0;
+            rs.currentProgress = h.logs.length % (rs.threshold || 10);
+            modified = true;
+        }
+        if (rs.cardsCompleted === undefined) {
+            rs.cardsCompleted = 0;
+            rs.currentProgress = 0;
             modified = true;
         }
     });
@@ -81,30 +95,50 @@ function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+// Ensure habit has card-based reward fields (migrate from old lifetimeTickets on the fly)
+function normalizeRewardSettings(h) {
+    if (!h.rewardSettings) {
+        h.rewardSettings = { enabled: false, threshold: 10, cardsCompleted: 0, currentProgress: 0 };
+    }
+    const rs = h.rewardSettings;
+    if (rs.cardsCompleted === undefined) {
+        rs.cardsCompleted = rs.lifetimeTickets || 0;
+        rs.currentProgress = h.logs.length % (rs.threshold || 10);
+    }
+    if (rs.currentProgress === undefined) {
+        rs.currentProgress = 0;
+    }
+    return rs;
+}
+
 // 2. Action Logic
 let lastAction = null;
 
 function logHabit(id) {
     const habit = state.habits.find(h => h.id === id);
     if (!habit) return;
-    
+
     const now = Date.now();
     habit.logs.push(now);
-    lastAction = { type: 'log', habitId: id, timestamp: now };
-    
-    // Reward Ticket Calculation for this habit
+    lastAction = { type: 'log', habitId: id, timestamp: now, ticketsAwarded: 0 };
+
+    // Card-based reward system (集點卡原理)
     if (habit.rewardSettings && habit.rewardSettings.enabled) {
-        if (!habit.rewardSettings.lifetimeTickets) habit.rewardSettings.lifetimeTickets = 0;
-        
-        const expectedTickets = Math.floor(habit.logs.length / habit.rewardSettings.threshold);
-        if (expectedTickets > habit.rewardSettings.lifetimeTickets) {
-            const newTickets = expectedTickets - habit.rewardSettings.lifetimeTickets;
-            state.rewards.tickets += newTickets;
-            habit.rewardSettings.lifetimeTickets = expectedTickets;
-            alert(`🎉 恭喜！達成目標，獲得了 ${newTickets} 張抽獎券！`);
+        const rs = normalizeRewardSettings(habit);
+        const threshold = rs.threshold || 10;
+
+        rs.currentProgress++;
+
+        if (rs.currentProgress >= threshold) {
+            const newCards = Math.floor(rs.currentProgress / threshold);
+            rs.cardsCompleted += newCards;
+            rs.currentProgress = rs.currentProgress % threshold;
+            state.rewards.tickets += newCards;
+            lastAction.ticketsAwarded = newCards;
+            alert(`🎉 恭喜！達成目標，獲得了 ${newCards} 張抽獎券！`);
         }
     }
-    
+
     save();
     renderHabits();
     showUndoBanner();
@@ -117,6 +151,13 @@ function undoLastLog() {
         const index = habit.logs.indexOf(lastAction.timestamp);
         if (index > -1) {
             habit.logs.splice(index, 1);
+            // 撤回集點進度（已兌換的票券不回收）
+            if (habit.rewardSettings && habit.rewardSettings.enabled) {
+                const rs = normalizeRewardSettings(habit);
+                if (rs.currentProgress > 0) {
+                    rs.currentProgress--;
+                }
+            }
             save();
             renderHabits();
             hideUndoBanner();
@@ -422,22 +463,32 @@ function completeFocusSession() {
     renderFocusSummary();
 }
 
+function getFocusRewardThreshold() {
+    const h = state.settings.focusRewardHours || 7;
+    const m = state.settings.focusRewardMinutes || 0;
+    return h * 60 + m;
+}
+
+function formatFocusThreshold() {
+    const h = state.settings.focusRewardHours || 7;
+    const m = state.settings.focusRewardMinutes || 0;
+    if (m > 0) return `${h} 小時 ${m} 分鐘`;
+    return `${h} 小時`;
+}
+
 function checkFocusRewards() {
-    // 1 ticket per 7 hours (420 mins)
     const totalMinutes = state.focusLogs.reduce((acc, curr) => acc + curr.duration, 0);
-    const expectedTickets = Math.floor(totalMinutes / 420);
-    
-    // We need to track how many focus tickets we've ever earned to avoid re-awarding.
-    // Given the current schema, an easy way is to recalculate total earned vs what we have.
-    // Better: just add a specific property or assume standard rate?
-    // For now, since state.rewards.tickets is a moving balance, let's track lifetime earn.
+    const threshold = getFocusRewardThreshold();
+    if (threshold <= 0) return;
+
+    const expectedTickets = Math.floor(totalMinutes / threshold);
+
     if (!state.rewards.lifetimeFocusTickets) state.rewards.lifetimeFocusTickets = 0;
-    
+
     if (expectedTickets > state.rewards.lifetimeFocusTickets) {
         const newTickets = expectedTickets - state.rewards.lifetimeFocusTickets;
         state.rewards.tickets += newTickets;
         state.rewards.lifetimeFocusTickets = expectedTickets;
-        // Optionally notify user
     }
 }
 
@@ -475,18 +526,29 @@ function renderFocusSummary() {
     // Reward Progress Bar
     const progressText = document.getElementById("reward-progress-text");
     const progressBar = document.getElementById("reward-progress-bar");
+    const rewardLabel = document.getElementById("reward-threshold-label");
     if (progressText && progressBar) {
-        const threshold = 420; // 7 hours
+        const threshold = getFocusRewardThreshold();
         const currentProgress = totalMins % threshold;
         const remaining = threshold - currentProgress;
-        
+
         progressText.innerText = `${currentProgress} / ${threshold} min`;
         progressBar.style.width = `${(currentProgress / threshold) * 100}%`;
-        
+
+        if (rewardLabel) {
+            rewardLabel.innerText = `每專注滿 ${formatFocusThreshold()} 可獲得 1 張抽獎券`;
+        }
+
         if (remaining <= 60) {
             progressText.innerHTML = `<span style="color:#f59e0b; font-weight:bold;">再專注 ${remaining} 分鐘即可獲得獎券！</span>`;
         }
     }
+
+    // Populate focus reward config inputs
+    const hoursInput = document.getElementById("focus-reward-hours");
+    const minutesInput = document.getElementById("focus-reward-minutes");
+    if (hoursInput) hoursInput.value = state.settings.focusRewardHours || 7;
+    if (minutesInput) minutesInput.value = state.settings.focusRewardMinutes || 0;
 }
 
 // ==========================================
@@ -726,12 +788,13 @@ function renderHabits() {
         const todayCount = h.logs.filter(ts => ts >= todayStart && ts <= todayEnd).length;
         const totalCount = h.logs.length;
         
-        // Enhancement: Calculate remaining for ticket
+        // Card-based reward progress display
         let rewardProgressHtml = '';
         if (h.rewardSettings && h.rewardSettings.enabled) {
-            const threshold = h.rewardSettings.threshold || 10;
-            const remaining = threshold - (totalCount % threshold);
-            rewardProgressHtml = `<div style="font-size: 0.75rem; color: #f59e0b; margin-top: 4px; font-weight: 600;">🎟️ 再累積 ${remaining} 次抽獎券</div>`;
+            const rs = normalizeRewardSettings(h);
+            const threshold = rs.threshold || 10;
+            const remaining = threshold - rs.currentProgress;
+            rewardProgressHtml = `<div style="font-size: 0.75rem; color: #f59e0b; margin-top: 4px; font-weight: 600;">🎟️ 再 ${remaining} 次換抽獎券 (已集 ${rs.cardsCompleted} 張)</div>`;
         }
         
         const card = document.createElement("div");
@@ -857,6 +920,23 @@ function deleteSpecificLog(habitId, timestamp) {
     const habit = state.habits.find(h => h.id === habitId);
     if (habit) {
         habit.logs = habit.logs.filter(ts => ts !== timestamp);
+        // 重算集點進度（已兌換票券不回收）
+        if (habit.rewardSettings && habit.rewardSettings.enabled) {
+            const rs = normalizeRewardSettings(habit);
+            // 重新計算：總次數 = 已兌換卡片 * 門檻 + 當前進度
+            const totalFromCards = rs.cardsCompleted * (rs.threshold || 10) + rs.currentProgress;
+            const newTotal = habit.logs.length;
+            if (newTotal < totalFromCards) {
+                // 進度不足，從 currentProgress 扣除
+                const diff = totalFromCards - newTotal;
+                if (rs.currentProgress >= diff) {
+                    rs.currentProgress -= diff;
+                } else {
+                    // 進度歸零（已兌換的不回溯）
+                    rs.currentProgress = 0;
+                }
+            }
+        }
         save();
         openHabitDetails(habitId); // Refresh details view
         renderHabits();
@@ -888,15 +968,18 @@ function addBackLog(habitId) {
         openHabitDetails(habitId);
         renderHabits();
         
-        // Force ticket check retroactively
+        // Card-based reward check for backfill
         if (habit.rewardSettings && habit.rewardSettings.enabled) {
-            if (!habit.rewardSettings.lifetimeTickets) habit.rewardSettings.lifetimeTickets = 0;
-            const expectedTickets = Math.floor(habit.logs.length / habit.rewardSettings.threshold);
-            if (expectedTickets > habit.rewardSettings.lifetimeTickets) {
-                const newTickets = expectedTickets - habit.rewardSettings.lifetimeTickets;
-                state.rewards.tickets += newTickets;
-                habit.rewardSettings.lifetimeTickets = expectedTickets;
-                alert(`補登成功！並額外獲得了 ${newTickets} 張抽獎券！`);
+            const rs = normalizeRewardSettings(habit);
+            const threshold = rs.threshold || 10;
+            rs.currentProgress++;
+
+            if (rs.currentProgress >= threshold) {
+                const newCards = Math.floor(rs.currentProgress / threshold);
+                rs.cardsCompleted += newCards;
+                rs.currentProgress = rs.currentProgress % threshold;
+                state.rewards.tickets += newCards;
+                alert(`補登成功！並額外獲得了 ${newCards} 張抽獎券！`);
             } else {
                 alert("補登成功！");
             }
@@ -904,6 +987,20 @@ function addBackLog(habitId) {
             alert("補登成功！");
         }
     }
+}
+
+function saveFocusRewardSettings() {
+    const h = parseInt(document.getElementById("focus-reward-hours").value);
+    const m = parseInt(document.getElementById("focus-reward-minutes").value);
+    state.settings.focusRewardHours = Math.max(0, isNaN(h) ? 7 : h);
+    state.settings.focusRewardMinutes = Math.max(0, Math.min(59, isNaN(m) ? 0 : m));
+    if (getFocusRewardThreshold() <= 0) {
+        state.settings.focusRewardHours = 7;
+        state.settings.focusRewardMinutes = 0;
+    }
+    save();
+    checkFocusRewards();
+    renderFocusSummary();
 }
 
 function addFocusBackLog() {
@@ -1002,12 +1099,16 @@ function openHabitDetails(id) {
                 <span style="font-size:0.9rem;">啟用賺取抽獎券</span>
                 <input type="checkbox" ${h.rewardSettings.enabled ? 'checked' : ''} onchange="toggleHabitReward(${h.id}, this.checked)" style="width:20px; height:20px; accent-color:var(--primary);">
             </div>
-            ${h.rewardSettings.enabled ? `
+            ${h.rewardSettings.enabled ? (() => {
+                const rs = normalizeRewardSettings(h);
+                return `
+            <div style="margin-top:8px; font-size:0.75rem; color:#f59e0b;">已累積兌換 ${rs.cardsCompleted} 張券｜目前進度 ${rs.currentProgress} / ${rs.threshold}</div>
             <div style="margin-top:12px; display:flex; align-items:center; gap:8px;">
                 <span style="font-size:0.9rem;">每累積</span>
-                <input type="number" value="${h.rewardSettings.threshold}" min="1" max="100" onchange="updateHabitRewardThreshold(${h.id}, this.value)" style="width:60px; padding:8px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center;">
+                <input type="number" value="${rs.threshold}" min="1" max="100" onchange="updateHabitRewardThreshold(${h.id}, this.value)" style="width:60px; padding:8px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center;">
                 <span style="font-size:0.9rem;">次，獲得 1 張抽獎券</span>
-            </div>` : ''}
+            </div>`;
+            })() : ''}
         </div>
 
         <label style="font-size: 0.8rem; color: var(--text-dim); display:block; margin-top: 24px; margin-bottom: 8px;">最近 50 筆紀錄</label>
@@ -1053,9 +1154,18 @@ function toggleHabitReward(id, enabled) {
 function updateHabitRewardThreshold(id, value) {
     const h = state.habits.find(x => x.id === id);
     if (h) {
+        const rs = normalizeRewardSettings(h);
         let val = parseInt(value);
         if (isNaN(val) || val < 1) val = 1;
-        h.rewardSettings.threshold = val;
+        rs.threshold = val;
+
+        // 門檻降低時，現有進度可能立刻達標 → 自動兌換
+        if (rs.currentProgress >= val) {
+            const newCards = Math.floor(rs.currentProgress / val);
+            rs.cardsCompleted += newCards;
+            rs.currentProgress = rs.currentProgress % val;
+            state.rewards.tickets += newCards;
+        }
         save();
     }
 }
