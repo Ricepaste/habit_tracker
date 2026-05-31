@@ -69,19 +69,25 @@
                 <!-- Focus stats across time scales -->
             </div>
 
-            <div class="reward-status-card" id="reward-status-card" onclick="openFocusDetails()" style="cursor:pointer;">
+            <div class="reward-status-card" id="reward-status-card" onclick="openFocusDetails()"
+                style="cursor:pointer;">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div style="flex:1;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                             <span style="font-size:0.85rem; font-weight:600;">🎟️ 專注獎勵進度</span>
-                            <span id="reward-progress-text" style="font-size:0.8rem; color:var(--primary);">0 / 420 min</span>
+                            <span id="reward-progress-text" style="font-size:0.8rem; color:var(--primary);">0 / 420
+                                min</span>
                         </div>
                         <div class="progress-bar-bg">
                             <div id="reward-progress-bar" class="progress-bar-fill"></div>
                         </div>
-                        <p id="reward-threshold-label" style="font-size:0.65rem; color:var(--text-dim); margin-top:6px;">每專注滿 7 小時可獲得 1 張抽獎券</p>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <p id="reward-threshold-label"
+                                style="font-size:0.65rem; color:var(--text-dim); margin-top:6px;">每專注滿 7 小時可獲得 1 張抽獎券
+                            </p>
+                            <div style="font-size:1.2rem; margin-right:6px; color:var(--text-dim);">➔</div>
+                        </div>
                     </div>
-                    <div style="font-size:1.2rem; margin-left:12px; color:var(--text-dim);">➔</div>
                 </div>
             </div>
 
@@ -112,11 +118,16 @@
 
             <div class="focus-controls">
                 <button id="btn-focus-start" class="btn-full primary-btn" onclick="startFocusTimer()">開始專注</button>
-                <button id="btn-focus-reenter" class="btn-full" style="background:rgba(192, 132, 252, 0.1); color:var(--primary); display:none; border:1px solid rgba(192, 132, 252, 0.2);"
+                <button id="btn-focus-reenter" class="btn-full"
+                    style="background:rgba(192, 132, 252, 0.1); color:var(--primary); display:none; border:1px solid rgba(192, 132, 252, 0.2);"
                     onclick="enableScreenProtection()">返回護眼畫面</button>
                 <button id="btn-focus-stop" class="btn-full" style="background:#ef444415; color:#ef4444; display:none;"
                     onclick="stopFocusTimer()">結束專注</button>
             </div>
+
+            <!-- Manually Backfill Focus -->
+            <button class="btn-full" style="background:var(--card-light); margin-top:32px; color:var(--text-dim);"
+                onclick="openSheet('sheet-focus-backfill')">+ 手動補登專注時間</button>
 
         </div>
 
@@ -292,7 +303,8 @@
             <div id="drop-feedback" class="drop-feedback" style="display:none;"></div>
         </div>
 
-        <button class="btn-full" style="background: #ef444422; color: #ef4444; margin-top:12px;" onclick="closeSheets()">取消</button>
+        <button class="btn-full" style="background: #ef444422; color: #ef4444; margin-top:12px;"
+            onclick="closeSheets()">取消</button>
     </div>
 
     <!-- Screen Protection Overlay -->

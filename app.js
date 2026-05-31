@@ -1094,14 +1094,18 @@ function openFocusDetails() {
 
         <div class="backfill-section">
             <label style="font-size:0.8rem; font-weight:700; color:var(--primary);">🕒 手動補登專注時間</label>
-            <div class="backfill-controls">
-                <input type="date" id="focus-details-backlog-date" value="${new Date().toISOString().split('T')[0]}">
+            <p style="color:var(--text-dim); margin-bottom:16px; font-size:0.8rem;">補回遺漏的工作時段。</p>
+            <div class="input-group">
+                <label>日期</label>
+                <input type="date" id="focus-details-backlog-date" value="${new Date().toISOString().split('T')[0]}"
+                    style="background:var(--bg); border:1px solid var(--border); color:white; padding:12px; border-radius:8px; font-size:0.9rem; width:100%;">
             </div>
-            <div style="margin-top:8px;">
-                <input type="number" id="focus-details-backlog-duration" value="25" min="1" placeholder="分鐘數"
-                    style="width:100%; padding:12px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center; font-size:0.9rem;">
+            <div class="input-group">
+                <label>時段總長 (分鐘)</label>
+                <input type="number" id="focus-details-backlog-duration" value="25" min="1"
+                    style="background:var(--bg); border:1px solid var(--border); color:white; padding:12px; border-radius:8px; font-size:0.9rem; width:100%; text-align:center;">
             </div>
-            <button class="btn-full primary-btn" style="margin-top:12px; padding:12px; font-size:0.9rem;" onclick="addFocusBackLogFromDetails()">確認補登</button>
+            <button class="btn-full primary-btn" style="margin-top:8px; padding:12px; font-size:0.9rem;" onclick="addFocusBackLogFromDetails()">確認補登</button>
         </div>
 
         <div style="margin-top:32px; border-top:1px solid var(--border); padding-top:24px;">
