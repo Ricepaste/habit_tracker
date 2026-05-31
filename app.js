@@ -31,7 +31,7 @@ function migrate() {
     // Port old HabitFlowData to V3/V4 if exists
     const oldKey = "habitFlowData";
     const oldDataString = localStorage.getItem(oldKey);
-    
+
     if (oldDataString) {
         try {
             const oldData = JSON.parse(oldDataString);
@@ -48,7 +48,7 @@ function migrate() {
                     } else if (Array.isArray(h.logs)) {
                         timestamps.push(...h.logs);
                     }
-                    
+
                     return {
                         id: h.id || Date.now() + Math.random(),
                         name: h.name,
@@ -66,7 +66,7 @@ function migrate() {
             console.error("Migration failed", e);
         }
     }
-    
+
     // Ensure all existing habits have rewardSettings + card system fields
     let modified = false;
     state.habits.forEach(h => {
@@ -169,7 +169,7 @@ function undoLastLog() {
 function createNewHabit() {
     const name = document.getElementById("input-habit-name").value.trim();
     if (!name) return;
-    
+
     state.habits.push({
         id: Date.now(),
         name: name,
@@ -177,7 +177,7 @@ function createNewHabit() {
         createdAt: new Date().toISOString(),
         rewardSettings: { enabled: false, threshold: 10 }
     });
-    
+
     document.getElementById("input-habit-name").value = "";
     save();
     closeSheets();
@@ -210,12 +210,12 @@ function playSound(type) {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    
+
     osc.connect(gain);
     gain.connect(ctx.destination);
-    
+
     const now = ctx.currentTime;
-    
+
     if (type === 'start') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(880, now);
@@ -247,7 +247,7 @@ function playSound(type) {
 function toggleWakeLockPreference(enabled) {
     state.settings.wakeLockEnabled = enabled;
     save();
-    
+
     // If timer is running and user turns OFF wake lock, hide the re-enter button
     const reenterBtn = document.getElementById("btn-focus-reenter");
     if (reenterBtn) {
@@ -261,7 +261,7 @@ function toggleWakeLockPreference(enabled) {
 
 async function enableScreenProtection() {
     if (!state.settings.wakeLockEnabled) return;
-    
+
     // Request screen wake lock
     if (navigator.wakeLock && !wakeLock) {
         try {
@@ -277,14 +277,14 @@ async function enableScreenProtection() {
             console.error('Wake Lock error:', err.name, err.message);
         }
     }
-    
+
     // Show protection overlay
     document.getElementById("screen-protection-overlay").classList.add("active");
     // Request Fullscreen to hide system status bar and home buttons
     if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(() => {});
+        document.documentElement.requestFullscreen().catch(() => { });
     }
-    
+
     // Hide re-enter button because we are now protected
     const reenterBtn = document.getElementById("btn-focus-reenter");
     if (reenterBtn) reenterBtn.style.display = "none";
@@ -293,7 +293,7 @@ async function enableScreenProtection() {
 function disableScreenProtection() {
     document.getElementById("screen-protection-overlay").classList.remove("active");
     if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
+        document.exitFullscreen().catch(() => { });
     }
     // If timer is still running, show re-enter button
     const reenterBtn = document.getElementById("btn-focus-reenter");
@@ -308,11 +308,11 @@ function setFocusTimerMode(mode) {
         stopFocusTimer();
     }
     focusTimerMode = mode;
-    
+
     // UI Update
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(mode === 'pomodoro' ? 'mode-pomo' : 'mode-stopwatch').classList.add('active');
-    
+
     if (mode === 'pomodoro') {
         focusTimeLeft = TOTAL_FOCUS_TIME;
         focusMode = 'work';
@@ -334,7 +334,7 @@ function updateFocusDisplay() {
     document.getElementById("focus-time-display").innerText = timeStr;
     const protectedClock = document.getElementById("protected-clock");
     if (protectedClock) protectedClock.innerText = timeStr;
-    
+
     const progress = document.querySelector(".timer-progress");
     if (!progress) return;
 
@@ -351,14 +351,14 @@ function updateFocusDisplay() {
 
 async function startFocusTimer() {
     if (focusInterval) return;
-    
+
     // Request screen wake lock if enabled
     if (state.settings.wakeLockEnabled) {
         await enableScreenProtection();
     }
-    
+
     playSound('start');
-    
+
     focusStartTime = Date.now();
     if (focusTimerMode === 'pomodoro') {
         // Set the target end time based on remaining seconds
@@ -369,7 +369,7 @@ async function startFocusTimer() {
     }
     document.getElementById("btn-focus-start").style.display = "none";
     document.getElementById("btn-focus-stop").style.display = "block";
-    
+
     focusInterval = setInterval(() => {
         const now = Date.now();
         if (focusTimerMode === 'pomodoro') {
@@ -400,10 +400,10 @@ function stopFocusTimer() {
         disableScreenProtection();
         return;
     }
-    
+
     playSound('stop');
     disableScreenProtection();
-    
+
     if (focusTimerMode === 'stopwatch' && focusInterval) {
         // Record the time before stopping
         const durationMins = Math.floor(focusTimeLeft / 60);
@@ -418,15 +418,15 @@ function stopFocusTimer() {
 
     clearInterval(focusInterval);
     focusInterval = null;
-    
+
     if (focusTimerMode === 'pomodoro') {
         focusTimeLeft = focusMode === 'work' ? TOTAL_FOCUS_TIME : 5 * 60;
     } else {
         focusTimeLeft = 0;
     }
-    
+
     updateFocusDisplay();
-    
+
     document.getElementById("btn-focus-start").style.display = "block";
     document.getElementById("btn-focus-stop").style.display = "none";
     document.getElementById("btn-focus-reenter").style.display = "none";
@@ -436,13 +436,13 @@ function completeFocusSession() {
     playSound('complete');
     clearInterval(focusInterval);
     focusInterval = null;
-    
+
     if (focusMode === 'work') {
         const durationMins = TOTAL_FOCUS_TIME / 60;
         state.focusLogs.push({ timestamp: Date.now(), duration: durationMins });
         checkFocusRewards();
         save();
-        
+
         // Switch to rest
         focusMode = 'rest';
         focusTimeLeft = 5 * 60;
@@ -459,7 +459,7 @@ function completeFocusSession() {
         document.getElementById("focus-mode-label").style.color = "var(--text-dim)";
         document.querySelector(".timer-progress").style.stroke = "var(--primary)";
     }
-    
+
     renderFocusSummary();
 }
 
@@ -493,35 +493,35 @@ function checkFocusRewards() {
 }
 
 function renderFocusSummary() {
-    const todayStart = new Date().setHours(0,0,0,0);
+    const todayStart = new Date().setHours(0, 0, 0, 0);
     const now = new Date();
-    const dayOfWeek = now.getDay(); 
-    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)).setHours(0,0,0,0);
+    const dayOfWeek = now.getDay();
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)).setHours(0, 0, 0, 0);
 
     const todayLogs = state.focusLogs.filter(l => l.timestamp >= todayStart);
     const weekLogs = state.focusLogs.filter(l => l.timestamp >= weekStart);
-    
+
     const todayMins = todayLogs.reduce((acc, curr) => acc + curr.duration, 0);
     const weekMins = weekLogs.reduce((acc, curr) => acc + curr.duration, 0);
     const totalMins = state.focusLogs.reduce((acc, curr) => acc + curr.duration, 0);
-    
+
     // Dashboard Stats
     const dashboard = document.getElementById("focus-dashboard");
     if (dashboard) {
         dashboard.innerHTML = `
             <div class="stat-card">
                 <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:4px;">本週累計</div>
-                <div style="font-size:1.2rem; font-weight:800; color:var(--primary);">${Math.floor(weekMins/60)}h ${weekMins%60}m</div>
+                <div style="font-size:1.2rem; font-weight:800; color:var(--primary);">${Math.floor(weekMins / 60)}h ${weekMins % 60}m</div>
             </div>
             <div class="stat-card">
                 <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:4px;">歷史總計</div>
-                <div style="font-size:1.2rem; font-weight:800; color:white;">${Math.floor(totalMins/60)}h ${totalMins%60}m</div>
+                <div style="font-size:1.2rem; font-weight:800; color:white;">${Math.floor(totalMins / 60)}h ${totalMins % 60}m</div>
             </div>
         `;
     }
 
     const summaryEl = document.getElementById("focus-today-total");
-    if (summaryEl) summaryEl.innerText = `${Math.floor(todayMins/60)}h ${todayMins%60}m`;
+    if (summaryEl) summaryEl.innerText = `${Math.floor(todayMins / 60)}h ${todayMins % 60}m`;
 
     // Reward Progress Bar
     const progressText = document.getElementById("reward-progress-text");
@@ -561,7 +561,7 @@ function drawReward() {
     }
 
     const { prizePool, missTime } = state.rewards;
-    
+
     if (prizePool.Rare.length === 0 && prizePool.Epic.length === 0 && prizePool.Legendary.length === 0) {
         alert("獎池為空！請先到「管理獎池」設定獎勵。");
         return;
@@ -569,7 +569,7 @@ function drawReward() {
 
     state.rewards.tickets -= 1;
     document.getElementById("ticket-count").innerText = state.rewards.tickets;
-    
+
     // Animation
     const box = document.getElementById("gacha-box");
     box.classList.add("animating");
@@ -578,7 +578,7 @@ function drawReward() {
     setTimeout(() => {
         box.classList.remove("animating");
         document.getElementById("btn-draw").disabled = false;
-        
+
         // --- Draw Logic (Ported from Prize.py) ---
         let rarity = null;
         let rng = Math.random() * 100;
@@ -595,7 +595,7 @@ function drawReward() {
         }
 
         // Finalize Rarity Logic
-        switch(rarity) {
+        switch (rarity) {
             case "Rare":
                 missTime.Rare = (missTime.Rare + 1) % 10;
                 break;
@@ -617,7 +617,7 @@ function drawReward() {
 
         const prizeList = prizePool[rarity];
         const prize = prizeList[Math.floor(Math.random() * prizeList.length)];
-        
+
         // Update Inventory
         if (!state.rewards.inventory) state.rewards.inventory = [];
         state.rewards.inventory.push({
@@ -625,14 +625,14 @@ function drawReward() {
             rarity: rarity,
             timestamp: Date.now()
         });
-        
+
         save();
         renderRewards();
-        
+
         // Show notification
         const emoji = rarity === "Legendary" ? "👑" : rarity === "Epic" ? "✨" : "🍀";
         alert(`${emoji} 恭喜抽中 ${rarity} 等級獎勵：${prize}！`);
-        
+
     }, 600);
 }
 
@@ -640,13 +640,13 @@ function savePrizePool() {
     const rareStr = document.getElementById("pool-rare").value;
     const epicStr = document.getElementById("pool-epic").value;
     const legStr = document.getElementById("pool-legendary").value;
-    
+
     state.rewards.prizePool = {
         Rare: rareStr.split(",").map(s => s.trim()).filter(Boolean),
         Epic: epicStr.split(",").map(s => s.trim()).filter(Boolean),
         Legendary: legStr.split(",").map(s => s.trim()).filter(Boolean)
     };
-    
+
     save();
     closeSheets();
     alert("獎池設定已儲存！");
@@ -654,16 +654,16 @@ function savePrizePool() {
 
 function renderRewards() {
     document.getElementById("ticket-count").innerText = state.rewards.tickets || 0;
-    
+
     const list = document.getElementById("inventory-list");
     list.innerHTML = "";
-    
+
     if (!state.rewards.inventory || state.rewards.inventory.length === 0) {
         list.innerHTML = `<div style="text-align:center; width:100%; padding:20px; color:var(--text-dim);">背包目前空空如也。</div>`;
         return;
     }
-    
-    const sortedInv = [...state.rewards.inventory].sort((a,b) => b.timestamp - a.timestamp);
+
+    const sortedInv = [...state.rewards.inventory].sort((a, b) => b.timestamp - a.timestamp);
     sortedInv.forEach((item) => {
         const div = document.createElement("div");
         div.className = `inv-item ${item.rarity}`;
@@ -738,10 +738,10 @@ function deleteInventoryItem() {
 
 function consumeItem(index) {
     if (confirm("要使用或移除這項獎勵嗎？")) {
-        const sortedInv = [...state.rewards.inventory].sort((a,b) => b.timestamp - a.timestamp);
+        const sortedInv = [...state.rewards.inventory].sort((a, b) => b.timestamp - a.timestamp);
         const itemToRemove = sortedInv[index];
         const realIndex = state.rewards.inventory.findIndex(i => i.timestamp === itemToRemove.timestamp && i.prize === itemToRemove.prize);
-        
+
         if (realIndex > -1) {
             state.rewards.inventory.splice(realIndex, 1);
             save();
@@ -754,10 +754,10 @@ function consumeItem(index) {
 function navigate(view, el) {
     document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
     document.getElementById(`view-${view}`).style.display = 'block';
-    
+
     document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
     el.classList.add('active');
-    
+
     if (view === 'habits') renderHabits();
     if (view === 'analytics') renderAnalytics();
     if (view === 'focus') {
@@ -775,19 +775,19 @@ function renderHabits() {
     const grid = document.getElementById("habit-grid");
     if (!grid) return;
     grid.innerHTML = "";
-    
+
     if (state.habits.length === 0) {
         grid.innerHTML = '<div style="text-align:center; padding:60px; color:var(--text-dim);">點擊下方按鈕開始你的第一個成長計畫。</div>';
         return;
     }
 
-    const todayStart = new Date().setHours(0,0,0,0);
-    const todayEnd = new Date().setHours(23,59,59,999);
+    const todayStart = new Date().setHours(0, 0, 0, 0);
+    const todayEnd = new Date().setHours(23, 59, 59, 999);
 
     state.habits.forEach(h => {
         const todayCount = h.logs.filter(ts => ts >= todayStart && ts <= todayEnd).length;
         const totalCount = h.logs.length;
-        
+
         // Card-based reward progress display
         let rewardProgressHtml = '';
         if (h.rewardSettings && h.rewardSettings.enabled) {
@@ -796,7 +796,7 @@ function renderHabits() {
             const remaining = threshold - rs.currentProgress;
             rewardProgressHtml = `<div style="font-size: 0.75rem; color: #f59e0b; margin-top: 4px; font-weight: 600;">🎟️ 再 ${remaining} 次換抽獎券</div>`;
         }
-        
+
         const card = document.createElement("div");
         card.className = "habit-card";
         card.innerHTML = `
@@ -822,7 +822,7 @@ function renderHabits() {
 function renderAnalytics() {
     const container = document.getElementById("analytics-content");
     container.innerHTML = "";
-    
+
     if (state.habits.length === 0) {
         container.innerHTML = '<div style="text-align:center; padding:60px; color:var(--text-dim);">尚未有足夠數據進行分析。</div>';
         return;
@@ -833,7 +833,7 @@ function renderAnalytics() {
         const hCard = document.createElement("div");
         hCard.className = "chart-card";
         const total = h.logs.length;
-        
+
         // Calculate milestones (e.g., every 50 logs is a level)
         const progress = Math.min((total % 50) / 50 * 100, 100);
         const level = Math.floor(total / 50) + 1;
@@ -868,7 +868,7 @@ function renderMiniHeatmap(logs) {
     const logCountsByDate = {};
     logs.forEach(ts => {
         const d = new Date(ts);
-        const s = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+        const s = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
         logCountsByDate[s] = (logCountsByDate[s] || 0) + 1;
     });
 
@@ -877,9 +877,9 @@ function renderMiniHeatmap(logs) {
     for (let i = 27; i >= 0; i--) {
         const d = new Date();
         d.setDate(now.getDate() - i);
-        const s = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+        const s = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
         const count = logCountsByDate[s] || 0;
-        
+
         let levelClass = "";
         if (count > 0) {
             if (count >= 4) levelClass = "lvl-4";
@@ -887,7 +887,7 @@ function renderMiniHeatmap(logs) {
             else if (count >= 2) levelClass = "lvl-2";
             else levelClass = "lvl-1";
         }
-        
+
         html += `<div class="cell ${levelClass}" style="width:11px; height:11px; border-radius:2px;"></div>`;
     }
     return html;
@@ -949,7 +949,7 @@ function deleteSpecificLog(habitId, timestamp) {
 function addBackLog(habitId) {
     const dateInput = document.getElementById("backlog-date");
     const timeInput = document.getElementById("backlog-time");
-    
+
     if (!dateInput.value) {
         alert("請選擇日期");
         return;
@@ -957,7 +957,7 @@ function addBackLog(habitId) {
 
     const timeStr = timeInput.value || "12:00";
     const timestamp = new Date(`${dateInput.value}T${timeStr}`).getTime();
-    
+
     if (isNaN(timestamp)) {
         alert("無效的時間格式");
         return;
@@ -970,7 +970,7 @@ function addBackLog(habitId) {
         save();
         openHabitDetails(habitId);
         renderHabits();
-        
+
         // Card-based reward check for backfill
         if (habit.rewardSettings && habit.rewardSettings.enabled) {
             const rs = normalizeRewardSettings(habit);
@@ -1038,7 +1038,7 @@ function openFocusDetails() {
         const height = Math.max((dailyMins[i] / maxMins) * 100, 2);
         chartHtml += `
             <div class="bar-wrap">
-                <div style="font-size:0.7rem; color:var(--primary); margin-bottom:4px; opacity:${dailyMins[i]>0?1:0}">${dailyMins[i]}m</div>
+                <div style="font-size:0.7rem; color:var(--primary); margin-bottom:4px; opacity:${dailyMins[i] > 0 ? 1 : 0}">${dailyMins[i]}m</div>
                 <div class="bar" style="height:${height}%"></div>
                 <div class="bar-label">${label}</div>
             </div>`;
@@ -1078,7 +1078,7 @@ function openFocusDetails() {
 
         <div class="backfill-section">
             <label style="font-size:0.8rem; font-weight:700; color:var(--primary);">🎯 獎勵門檻設定</label>
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-top:12px;">
                 <input type="number" id="focus-reward-hours" min="0" max="999" value="${h}"
                     style="width:56px; padding:8px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center;">
                 <span style="font-size:0.9rem;">小時</span>
@@ -1113,7 +1113,8 @@ function renderFocusBackfillForm(containerId, idPrefix, fromDetails) {
     const today = new Date().toISOString().split('T')[0];
     container.innerHTML = `
         <h2>手動補登專注時間</h2>
-        <p style="color: var(--text-dim); margin-bottom: 24px;">補回遺漏的工作時段。</p>
+        <p style="color: var(--text-dim); margin-bottom: 4px;">補回遺漏的工作時段。</p>
+        <div style="display:flex; flex-direction:row; gap:12px">
         <div class="input-group">
             <label>日期</label>
             <input type="date" id="${idPrefix}-date" value="${today}"
@@ -1123,6 +1124,7 @@ function renderFocusBackfillForm(containerId, idPrefix, fromDetails) {
             <label>時段總長 (分鐘)</label>
             <input type="number" id="${idPrefix}-duration" value="25" min="1"
                 style="background:var(--bg); border:1px solid var(--border); color:white; padding:12px; border-radius:8px; font-size:0.9rem; width:100%; text-align:center;">
+        </div>
         </div>
         <button class="btn-full primary-btn" style="margin-top:16px;"
             onclick="submitFocusBackfill('${idPrefix}', ${fromDetails})">確認補登</button>
@@ -1159,12 +1161,12 @@ function submitFocusBackfill(idPrefix, fromDetails) {
 function openHabitDetails(id) {
     const h = state.habits.find(x => x.id === id);
     if (!h) return;
-    
+
     const content = document.getElementById("details-content");
-    
+
     // Sort logs by time (newest first)
     const sortedLogs = [...h.logs].sort((a, b) => b - a);
-    
+
     let historyHtml = sortedLogs.slice(0, 50).map(ts => {
         const d = new Date(ts);
         const dateStr = d.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
@@ -1187,7 +1189,7 @@ function openHabitDetails(id) {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const counts = Array(7).fill(0);
     const ONE_DAY = 1000 * 60 * 60 * 24;
-    
+
     h.logs.forEach(ts => {
         const logDate = new Date(ts);
         const logDayStart = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate()).getTime();
@@ -1203,7 +1205,7 @@ function openHabitDetails(id) {
         const height = Math.max((counts[i] / max) * 100, 2);
         chartHtml += `
             <div class="bar-wrap">
-                <div style="font-size:0.7rem; color:var(--primary); margin-bottom:4px; opacity:${counts[i]>0?1:0}">${counts[i]}</div>
+                <div style="font-size:0.7rem; color:var(--primary); margin-bottom:4px; opacity:${counts[i] > 0 ? 1 : 0}">${counts[i]}</div>
                 <div class="bar" style="height: ${height}%"></div>
                 <div class="bar-label">${label}</div>
             </div>
@@ -1234,15 +1236,15 @@ function openHabitDetails(id) {
                 <input type="checkbox" ${h.rewardSettings.enabled ? 'checked' : ''} onchange="toggleHabitReward(${h.id}, this.checked)" style="width:20px; height:20px; accent-color:var(--primary);">
             </div>
             ${h.rewardSettings.enabled ? (() => {
-                const rs = normalizeRewardSettings(h);
-                return `
+            const rs = normalizeRewardSettings(h);
+            return `
             <div style="margin-top:8px; font-size:0.75rem; color:#f59e0b;">目前進度 ${rs.currentProgress} / ${rs.threshold}</div>
             <div style="margin-top:12px; display:flex; align-items:center; gap:8px;">
                 <span style="font-size:0.9rem;">每累積</span>
                 <input type="number" value="${rs.threshold}" min="1" max="100" onchange="updateHabitRewardThreshold(${h.id}, this.value)" style="width:60px; padding:8px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center;">
                 <span style="font-size:0.9rem;">次，獲得 1 張抽獎券</span>
             </div>`;
-            })() : ''}
+        })() : ''}
         </div>
 
         <label style="font-size: 0.8rem; color: var(--text-dim); display:block; margin-top: 24px; margin-bottom: 8px;">最近 50 筆紀錄</label>
