@@ -901,7 +901,10 @@ function openSheet(id) {
         document.getElementById("pool-epic").value = pool.Epic ? pool.Epic.join(", ") : "";
         document.getElementById("pool-legendary").value = pool.Legendary ? pool.Legendary.join(", ") : "";
     }
-    
+    if (id === 'sheet-focus-backfill') {
+        renderFocusBackfillForm('focus-backfill-content', 'focus-backlog', false);
+    }
+
     document.getElementById("sheet-overlay").classList.add("open");
     document.getElementById(id).classList.add("open");
 }
@@ -1092,51 +1095,47 @@ function openFocusDetails() {
         <label style="font-size:0.8rem; color:var(--text-dim); display:block; margin-top:24px; margin-bottom:8px;">最近 50 筆專注紀錄</label>
         <div class="log-history">${historyHtml}</div>` : ''}
 
-        <div class="backfill-section">
-            <label style="font-size:0.8rem; font-weight:700; color:var(--primary);">🕒 手動補登專注時間</label>
-            <p style="color:var(--text-dim); margin-bottom:16px; font-size:0.8rem;">補回遺漏的工作時段。</p>
-            <div class="input-group">
-                <label>日期</label>
-                <input type="date" id="focus-details-backlog-date" value="${new Date().toISOString().split('T')[0]}"
-                    style="background:var(--bg); border:1px solid var(--border); color:white; padding:12px; border-radius:8px; font-size:0.9rem; width:100%;">
-            </div>
-            <div class="input-group">
-                <label>時段總長 (分鐘)</label>
-                <input type="number" id="focus-details-backlog-duration" value="25" min="1"
-                    style="background:var(--bg); border:1px solid var(--border); color:white; padding:12px; border-radius:8px; font-size:0.9rem; width:100%; text-align:center;">
-            </div>
-            <button class="btn-full primary-btn" style="margin-top:8px; padding:12px; font-size:0.9rem;" onclick="addFocusBackLogFromDetails()">確認補登</button>
-        </div>
+        <div class="backfill-section" id="focus-details-backfill-container"></div>
 
         <div style="margin-top:32px; border-top:1px solid var(--border); padding-top:24px;">
             <button class="btn-full primary-btn" style="padding:14px;" onclick="closeSheets()">確認並關閉</button>
         </div>
     `;
     openSheet("sheet-focus-details");
+    // 以共用模組渲染補登表單
+    renderFocusBackfillForm('focus-details-backfill-container', 'focus-details-backlog', true);
 }
 
-function addFocusBackLog() {
-    const dateInput = document.getElementById("focus-backlog-date").value;
-    const durationInput = parseInt(document.getElementById("focus-backlog-duration").value) || 25;
-    
-    if (!dateInput) {
-        alert("請選擇補登日期");
-        return;
-    }
-    
-    const timestamp = new Date(`${dateInput}T12:00`).getTime();
-    state.focusLogs.push({ timestamp, duration: durationInput });
-    checkFocusRewards();
-    save();
-    
-    renderFocusSummary();
-    closeSheets();
-    alert("專注時間補登成功！");
+// 共用的補登表單渲染（獨立 sheet 與 drawer 共用）
+function renderFocusBackfillForm(containerId, idPrefix, fromDetails) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const today = new Date().toISOString().split('T')[0];
+    container.innerHTML = `
+        <h2>手動補登專注時間</h2>
+        <p style="color: var(--text-dim); margin-bottom: 24px;">補回遺漏的工作時段。</p>
+        <div class="input-group">
+            <label>日期</label>
+            <input type="date" id="${idPrefix}-date" value="${today}"
+                style="background:var(--bg); border:1px solid var(--border); color:white; padding:12px; border-radius:8px; font-size:0.9rem; width:100%;">
+        </div>
+        <div class="input-group">
+            <label>時段總長 (分鐘)</label>
+            <input type="number" id="${idPrefix}-duration" value="25" min="1"
+                style="background:var(--bg); border:1px solid var(--border); color:white; padding:12px; border-radius:8px; font-size:0.9rem; width:100%; text-align:center;">
+        </div>
+        <button class="btn-full primary-btn" style="margin-top:16px;"
+            onclick="submitFocusBackfill('${idPrefix}', ${fromDetails})">確認補登</button>
+        ${!fromDetails ? `
+        <button class="btn-full" style="background:var(--card-light); margin-top:12px; color:var(--text-dim);"
+            onclick="closeSheets()">取消</button>` : ''}
+    `;
 }
 
-function addFocusBackLogFromDetails() {
-    const dateInput = document.getElementById("focus-details-backlog-date");
-    const durationInput = parseInt(document.getElementById("focus-details-backlog-duration").value) || 25;
+function submitFocusBackfill(idPrefix, fromDetails) {
+    const dateInput = document.getElementById(`${idPrefix}-date`);
+    const durationEl = document.getElementById(`${idPrefix}-duration`);
+    const durationInput = parseInt(durationEl?.value) || 25;
 
     if (!dateInput || !dateInput.value) {
         alert("請選擇補登日期");
@@ -1149,8 +1148,11 @@ function addFocusBackLogFromDetails() {
     save();
 
     renderFocusSummary();
-    // 刷新 details sheet
-    openFocusDetails();
+    if (fromDetails) {
+        openFocusDetails();
+    } else {
+        closeSheets();
+    }
     alert("專注時間補登成功！");
 }
 
