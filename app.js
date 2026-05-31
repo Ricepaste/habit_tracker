@@ -794,7 +794,7 @@ function renderHabits() {
             const rs = normalizeRewardSettings(h);
             const threshold = rs.threshold || 10;
             const remaining = threshold - rs.currentProgress;
-            rewardProgressHtml = `<div style="font-size: 0.75rem; color: #f59e0b; margin-top: 4px; font-weight: 600;">🎟️ 再 ${remaining} 次換抽獎券 (已集 ${rs.cardsCompleted} 張)</div>`;
+            rewardProgressHtml = `<div style="font-size: 0.75rem; color: #f59e0b; margin-top: 4px; font-weight: 600;">🎟️ 再 ${remaining} 次換抽獎券</div>`;
         }
         
         const card = document.createElement("div");
@@ -1102,7 +1102,7 @@ function openHabitDetails(id) {
             ${h.rewardSettings.enabled ? (() => {
                 const rs = normalizeRewardSettings(h);
                 return `
-            <div style="margin-top:8px; font-size:0.75rem; color:#f59e0b;">已累積兌換 ${rs.cardsCompleted} 張券｜目前進度 ${rs.currentProgress} / ${rs.threshold}</div>
+            <div style="margin-top:8px; font-size:0.75rem; color:#f59e0b;">目前進度 ${rs.currentProgress} / ${rs.threshold}</div>
             <div style="margin-top:12px; display:flex; align-items:center; gap:8px;">
                 <span style="font-size:0.9rem;">每累積</span>
                 <input type="number" value="${rs.threshold}" min="1" max="100" onchange="updateHabitRewardThreshold(${h.id}, this.value)" style="width:60px; padding:8px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center;">
@@ -1167,6 +1167,8 @@ function updateHabitRewardThreshold(id, value) {
             state.rewards.tickets += newCards;
         }
         save();
+        renderHabits();
+        openHabitDetails(id);
     }
 }
 
