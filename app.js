@@ -926,7 +926,7 @@ function deleteSpecificLog(habitId, timestamp) {
         // 刪除時簡單 -1 進度（已兌換票券不回收）
         if (habit.rewardSettings && habit.rewardSettings.enabled) {
             const rs = normalizeRewardSettings(habit);
-            rs.currentProgress = Math.max(0, rs.currentProgress - 1);
+            rs.currentProgress = rs.currentProgress - 1;
         }
         save();
         openHabitDetails(habitId); // Refresh details view
