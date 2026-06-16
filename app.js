@@ -923,22 +923,10 @@ function deleteSpecificLog(habitId, timestamp) {
     const habit = state.habits.find(h => h.id === habitId);
     if (habit) {
         habit.logs = habit.logs.filter(ts => ts !== timestamp);
-        // 重算集點進度（已兌換票券不回收）
+        // 刪除時簡單 -1 進度（已兌換票券不回收）
         if (habit.rewardSettings && habit.rewardSettings.enabled) {
             const rs = normalizeRewardSettings(habit);
-            // 重新計算：總次數 = 已兌換卡片 * 門檻 + 當前進度
-            const totalFromCards = rs.cardsCompleted * (rs.threshold || 10) + rs.currentProgress;
-            const newTotal = habit.logs.length;
-            if (newTotal < totalFromCards) {
-                // 進度不足，從 currentProgress 扣除
-                const diff = totalFromCards - newTotal;
-                if (rs.currentProgress >= diff) {
-                    rs.currentProgress -= diff;
-                } else {
-                    // 進度歸零（已兌換的不回溯）
-                    rs.currentProgress = 0;
-                }
-            }
+            rs.currentProgress = Math.max(0, rs.currentProgress - 1);
         }
         save();
         openHabitDetails(habitId); // Refresh details view
@@ -967,11 +955,9 @@ function addBackLog(habitId) {
     if (habit) {
         habit.logs.push(timestamp);
         habit.logs.sort((a, b) => b - a); // Keep it sorted descending
-        save();
-        openHabitDetails(habitId);
-        renderHabits();
 
-        // Card-based reward check for backfill
+        // Card-based reward check for backfill (must be before save/render)
+        let msg = "補登成功！";
         if (habit.rewardSettings && habit.rewardSettings.enabled) {
             const rs = normalizeRewardSettings(habit);
             const threshold = rs.threshold || 10;
@@ -982,13 +968,14 @@ function addBackLog(habitId) {
                 rs.cardsCompleted += newCards;
                 rs.currentProgress = rs.currentProgress % threshold;
                 state.rewards.tickets += newCards;
-                alert(`補登成功！並額外獲得了 ${newCards} 張抽獎券！`);
-            } else {
-                alert("補登成功！");
+                msg = `補登成功！並額外獲得了 ${newCards} 張抽獎券！`;
             }
-        } else {
-            alert("補登成功！");
         }
+
+        save();
+        openHabitDetails(habitId);
+        renderHabits();
+        alert(msg);
     }
 }
 
