@@ -367,6 +367,18 @@ async function startFocusTimer() {
         // Stopwatch mode: we count up from zero
         focusEndTime = null;
     }
+
+    // 持久化計時狀態，防止頁面被手勢返回卸載後遺失
+    if (focusTimerMode === 'stopwatch' || focusMode === 'work') {
+        state._activeTimer = {
+            mode: focusTimerMode,
+            startTime: focusStartTime,
+            focusMode: focusMode,
+            focusTimeLeft: focusTimeLeft
+        };
+        save();
+    }
+
     document.getElementById("btn-focus-start").style.display = "none";
     document.getElementById("btn-focus-stop").style.display = "block";
 
@@ -418,6 +430,7 @@ function stopFocusTimer() {
 
     clearInterval(focusInterval);
     focusInterval = null;
+    state._activeTimer = null;  // 正常結束，清除持久化狀態
 
     if (focusTimerMode === 'pomodoro') {
         focusTimeLeft = focusMode === 'work' ? TOTAL_FOCUS_TIME : 5 * 60;
@@ -436,6 +449,7 @@ function completeFocusSession() {
     playSound('complete');
     clearInterval(focusInterval);
     focusInterval = null;
+    state._activeTimer = null;  // 正常結束，清除持久化狀態
 
     if (focusMode === 'work') {
         const durationMins = TOTAL_FOCUS_TIME / 60;
@@ -1509,6 +1523,24 @@ function forceUpdate() {
     }
 
     migrate();
+
+    // 復原中斷的計時（手勢返回導致頁面卸載時）
+    if (state._activeTimer && state._activeTimer.startTime) {
+        const at = state._activeTimer;
+        if (at.mode === 'stopwatch' || at.focusMode === 'work') {
+            const now = Date.now();
+            const elapsedSec = Math.round((now - at.startTime) / 1000);
+            const elapsedMins = Math.floor(elapsedSec / 60);
+            if (elapsedMins > 0) {
+                state.focusLogs.push({ timestamp: now, duration: elapsedMins });
+                checkFocusRewards();
+                console.log(`復原中斷計時：已記錄 ${elapsedMins} 分鐘`);
+            }
+        }
+        state._activeTimer = null;
+        save();
+    }
+
     renderHabits();
     setupDropZone();
 
