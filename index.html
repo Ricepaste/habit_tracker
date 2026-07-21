@@ -146,13 +146,16 @@
             </header>
             <div class="gacha-container">
                 <div id="gacha-box" class="gacha-box">🎁</div>
-                <button id="btn-draw" class="btn-full primary-btn" style="margin-top:24px; font-size:1.1rem;"
-                    onclick="drawReward()">開始抽獎 (消耗 1 券)</button>
+                <div style="display:flex; align-items:center; gap:12px; margin-top:24px;">
+                    <button id="btn-draw" class="btn-full primary-btn" style="flex:1; font-size:1.1rem;"
+                        onclick="drawReward()">開始抽獎 (消耗 1 券)</button>
+                    <div id="pity-trigger" class="pity-trigger-btn" onclick="togglePityProgress()" title="保底進度">🎯</div>
+                </div>
             </div>
 
             <!-- 保底進度 -->
-            <div id="pity-progress" class="reward-status-card" style="padding:12px; cursor:default;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <div id="pity-progress" class="reward-status-card pity-collapsed" style="padding:12px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; cursor:pointer;" onclick="togglePityProgress()">
                     <span style="font-size:0.85rem; font-weight:600;">🎯 保底進度</span>
                     <span style="font-size:0.8rem;">
                         還有
@@ -172,7 +175,7 @@
                         <div id="pity-epic-bar" style="width:0%; height:100%; border-radius:4px; transition:width 0.3s ease; background:linear-gradient(90deg, #3b82f6, #f59e0b);"></div>
                     </div>
                 </div>
-                <p style="font-size:0.65rem; color:var(--text-dim); margin:0;">Rare 10次 小保底 Epic；Epic 10次 大保底 Legendary</p>
+                <p style="font-size:0.65rem; color:var(--text-dim); margin:0;">Rare 9次下次保底 Epic；Epic 9次下次保底 Legendary</p>
             </div>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;">

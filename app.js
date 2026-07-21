@@ -666,6 +666,24 @@ function savePrizePool() {
     alert("獎池設定已儲存！");
 }
 
+function togglePityProgress() {
+    const pityProgress = document.getElementById("pity-progress");
+    const pityTrigger = document.getElementById("pity-trigger");
+    const isExpanded = pityProgress.classList.contains("pity-expanded");
+
+    if (isExpanded) {
+        // 收合
+        pityProgress.classList.remove("pity-expanded");
+        pityProgress.classList.add("pity-collapsed");
+        pityTrigger.classList.remove("active");
+    } else {
+        // 展開：🎯 按鈕變深色，保底進度滑出
+        pityTrigger.classList.add("active");
+        pityProgress.classList.remove("pity-collapsed");
+        pityProgress.classList.add("pity-expanded");
+    }
+}
+
 function renderRewards() {
     document.getElementById("ticket-count").innerText = state.rewards.tickets || 0;
 
