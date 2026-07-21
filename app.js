@@ -367,6 +367,18 @@ async function startFocusTimer() {
         // Stopwatch mode: we count up from zero
         focusEndTime = null;
     }
+
+    // 持久化計時狀態，防止頁面被手勢返回卸載後遺失
+    if (focusTimerMode === 'stopwatch' || focusMode === 'work') {
+        state._activeTimer = {
+            mode: focusTimerMode,
+            startTime: focusStartTime,
+            focusMode: focusMode,
+            focusTimeLeft: focusTimeLeft
+        };
+        save();
+    }
+
     document.getElementById("btn-focus-start").style.display = "none";
     document.getElementById("btn-focus-stop").style.display = "block";
 
@@ -418,6 +430,7 @@ function stopFocusTimer() {
 
     clearInterval(focusInterval);
     focusInterval = null;
+    state._activeTimer = null;  // 正常結束，清除持久化狀態
 
     if (focusTimerMode === 'pomodoro') {
         focusTimeLeft = focusMode === 'work' ? TOTAL_FOCUS_TIME : 5 * 60;
@@ -436,6 +449,7 @@ function completeFocusSession() {
     playSound('complete');
     clearInterval(focusInterval);
     focusInterval = null;
+    state._activeTimer = null;  // 正常結束，清除持久化狀態
 
     if (focusMode === 'work') {
         const durationMins = TOTAL_FOCUS_TIME / 60;
@@ -652,8 +666,44 @@ function savePrizePool() {
     alert("獎池設定已儲存！");
 }
 
+function togglePityProgress() {
+    const pityProgress = document.getElementById("pity-progress");
+    const pityTrigger = document.getElementById("pity-trigger");
+    const isExpanded = pityProgress.classList.contains("pity-expanded");
+
+    if (isExpanded) {
+        // 收合
+        pityProgress.classList.remove("pity-expanded");
+        pityProgress.classList.add("pity-collapsed");
+        pityTrigger.classList.remove("active");
+    } else {
+        // 展開：🎯 按鈕變深色，保底進度滑出
+        pityTrigger.classList.add("active");
+        pityProgress.classList.remove("pity-collapsed");
+        pityProgress.classList.add("pity-expanded");
+    }
+}
+
 function renderRewards() {
     document.getElementById("ticket-count").innerText = state.rewards.tickets || 0;
+
+    // 更新保底進度
+    const rarePity = state.rewards.missTime.Rare || 0;
+    const epicPity = state.rewards.missTime.Epic || 0;
+    const rareRemain = 9 - rarePity;
+    const epicRemain = 9 - epicPity;
+    const pityRareBar = document.getElementById("pity-rare-bar");
+    const pityEpicBar = document.getElementById("pity-epic-bar");
+    const pityHeaderRare = document.getElementById("pity-header-rare");
+    const pityHeaderEpic = document.getElementById("pity-header-epic");
+    if (pityRareBar) {
+        pityRareBar.style.width = Math.min((rarePity / 9) * 100, 100) + "%";
+    }
+    if (pityEpicBar) {
+        pityEpicBar.style.width = Math.min((epicPity / 9) * 100, 100) + "%";
+    }
+    if (pityHeaderRare) pityHeaderRare.innerText = rareRemain;
+    if (pityHeaderEpic) pityHeaderEpic.innerText = epicRemain;
 
     const list = document.getElementById("inventory-list");
     list.innerHTML = "";
@@ -923,22 +973,10 @@ function deleteSpecificLog(habitId, timestamp) {
     const habit = state.habits.find(h => h.id === habitId);
     if (habit) {
         habit.logs = habit.logs.filter(ts => ts !== timestamp);
-        // 重算集點進度（已兌換票券不回收）
+        // 刪除時簡單 -1 進度（已兌換票券不回收）
         if (habit.rewardSettings && habit.rewardSettings.enabled) {
             const rs = normalizeRewardSettings(habit);
-            // 重新計算：總次數 = 已兌換卡片 * 門檻 + 當前進度
-            const totalFromCards = rs.cardsCompleted * (rs.threshold || 10) + rs.currentProgress;
-            const newTotal = habit.logs.length;
-            if (newTotal < totalFromCards) {
-                // 進度不足，從 currentProgress 扣除
-                const diff = totalFromCards - newTotal;
-                if (rs.currentProgress >= diff) {
-                    rs.currentProgress -= diff;
-                } else {
-                    // 進度歸零（已兌換的不回溯）
-                    rs.currentProgress = 0;
-                }
-            }
+            rs.currentProgress = rs.currentProgress - 1;
         }
         save();
         openHabitDetails(habitId); // Refresh details view
@@ -967,11 +1005,9 @@ function addBackLog(habitId) {
     if (habit) {
         habit.logs.push(timestamp);
         habit.logs.sort((a, b) => b - a); // Keep it sorted descending
-        save();
-        openHabitDetails(habitId);
-        renderHabits();
 
-        // Card-based reward check for backfill
+        // Card-based reward check for backfill (must be before save/render)
+        let msg = "補登成功！";
         if (habit.rewardSettings && habit.rewardSettings.enabled) {
             const rs = normalizeRewardSettings(habit);
             const threshold = rs.threshold || 10;
@@ -982,13 +1018,14 @@ function addBackLog(habitId) {
                 rs.cardsCompleted += newCards;
                 rs.currentProgress = rs.currentProgress % threshold;
                 state.rewards.tickets += newCards;
-                alert(`補登成功！並額外獲得了 ${newCards} 張抽獎券！`);
-            } else {
-                alert("補登成功！");
+                msg = `補登成功！並額外獲得了 ${newCards} 張抽獎券！`;
             }
-        } else {
-            alert("補登成功！");
         }
+
+        save();
+        openHabitDetails(habitId);
+        renderHabits();
+        alert(msg);
     }
 }
 
@@ -1522,6 +1559,24 @@ function forceUpdate() {
     }
 
     migrate();
+
+    // 復原中斷的計時（手勢返回導致頁面卸載時）
+    if (state._activeTimer && state._activeTimer.startTime) {
+        const at = state._activeTimer;
+        if (at.mode === 'stopwatch' || at.focusMode === 'work') {
+            const now = Date.now();
+            const elapsedSec = Math.round((now - at.startTime) / 1000);
+            const elapsedMins = Math.floor(elapsedSec / 60);
+            if (elapsedMins > 0) {
+                state.focusLogs.push({ timestamp: now, duration: elapsedMins });
+                checkFocusRewards();
+                console.log(`復原中斷計時：已記錄 ${elapsedMins} 分鐘`);
+            }
+        }
+        state._activeTimer = null;
+        save();
+    }
+
     renderHabits();
     setupDropZone();
 

@@ -146,11 +146,39 @@
             </header>
             <div class="gacha-container">
                 <div id="gacha-box" class="gacha-box">🎁</div>
-                <button id="btn-draw" class="btn-full primary-btn" style="margin-top:24px; font-size:1.1rem;"
-                    onclick="drawReward()">開始抽獎 (消耗 1 券)</button>
+                <div style="display:flex; align-items:center; gap:12px; margin-top:24px;">
+                    <button id="btn-draw" class="btn-full primary-btn" style="flex:1; font-size:1.1rem;"
+                        onclick="drawReward()">開始抽獎 (消耗 1 券)</button>
+                    <div id="pity-trigger" class="pity-trigger-btn" onclick="togglePityProgress()" title="保底進度">🎯</div>
+                </div>
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:32px;">
+            <!-- 保底進度 -->
+            <div id="pity-progress" class="reward-status-card pity-collapsed" style="padding:12px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; cursor:pointer;" onclick="togglePityProgress()">
+                    <span style="font-size:0.85rem; font-weight:600;">🎯 保底進度</span>
+                    <span style="font-size:0.8rem;">
+                        還有
+                        <span id="pity-header-rare" style="color:#10b981;">9</span>
+                        <span style="color:var(--text-dim);"> / </span>
+                        <span id="pity-header-epic" style="color:#3b82f6;">9</span>
+                        <span style="color:var(--text-dim);">次</span>
+                    </span>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <div style="background:var(--bg); border-radius:4px; height:8px; overflow:hidden;">
+                        <div id="pity-rare-bar" style="width:0%; height:100%; border-radius:4px; transition:width 0.3s ease; background:linear-gradient(90deg, #10b981, #3b82f6);"></div>
+                    </div>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <div style="background:var(--bg); border-radius:4px; height:8px; overflow:hidden;">
+                        <div id="pity-epic-bar" style="width:0%; height:100%; border-radius:4px; transition:width 0.3s ease; background:linear-gradient(90deg, #3b82f6, #f59e0b);"></div>
+                    </div>
+                </div>
+                <p style="font-size:0.65rem; color:var(--text-dim); margin:0;">Rare 9次下次保底 Epic；Epic 9次下次保底 Legendary</p>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;">
                 <button class="btn-full" style="background:var(--card-light); color:var(--text-dim); padding:12px;"
                     onclick="openSheet('sheet-prize-pool')">⚙️ 獎池</button>
                 <button class="btn-full" style="background:var(--card-light); color:var(--text-dim); padding:12px;"
