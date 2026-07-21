@@ -669,6 +669,24 @@ function savePrizePool() {
 function renderRewards() {
     document.getElementById("ticket-count").innerText = state.rewards.tickets || 0;
 
+    // 更新保底進度
+    const rarePity = state.rewards.missTime.Rare || 0;
+    const epicPity = state.rewards.missTime.Epic || 0;
+    const rareRemain = 9 - rarePity;
+    const epicRemain = 9 - epicPity;
+    const pityRareBar = document.getElementById("pity-rare-bar");
+    const pityEpicBar = document.getElementById("pity-epic-bar");
+    const pityHeaderRare = document.getElementById("pity-header-rare");
+    const pityHeaderEpic = document.getElementById("pity-header-epic");
+    if (pityRareBar) {
+        pityRareBar.style.width = Math.min((rarePity / 9) * 100, 100) + "%";
+    }
+    if (pityEpicBar) {
+        pityEpicBar.style.width = Math.min((epicPity / 9) * 100, 100) + "%";
+    }
+    if (pityHeaderRare) pityHeaderRare.innerText = rareRemain;
+    if (pityHeaderEpic) pityHeaderEpic.innerText = epicRemain;
+
     const list = document.getElementById("inventory-list");
     list.innerHTML = "";
 
