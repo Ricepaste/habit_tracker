@@ -352,8 +352,8 @@ function updateFocusDisplay() {
 async function startFocusTimer() {
     if (focusInterval) return;
 
-    // Request screen wake lock if enabled
-    if (state.settings.wakeLockEnabled) {
+    // Request screen wake lock if enabled (skip during rest)
+    if (state.settings.wakeLockEnabled && focusMode !== 'rest') {
         await enableScreenProtection();
     }
 
@@ -433,7 +433,14 @@ function stopFocusTimer() {
     state._activeTimer = null;  // 正常結束，清除持久化狀態
 
     if (focusTimerMode === 'pomodoro') {
-        focusTimeLeft = focusMode === 'work' ? TOTAL_FOCUS_TIME : 5 * 60;
+        if (focusMode === 'rest') {
+            focusMode = 'work';
+            const label = document.getElementById("focus-mode-label");
+            label.innerText = "工作模式";
+            label.style.color = "var(--text-dim)";
+            document.querySelector(".timer-progress").style.stroke = "var(--primary)";
+        }
+        focusTimeLeft = TOTAL_FOCUS_TIME;
     } else {
         focusTimeLeft = 0;
     }
@@ -463,6 +470,7 @@ function completeFocusSession() {
         document.getElementById("focus-mode-label").innerText = "休息模式 (5分鐘)";
         document.getElementById("focus-mode-label").style.color = "#10b981";
         document.querySelector(".timer-progress").style.stroke = "#10b981";
+        updateFocusDisplay();
         startFocusTimer();
     } else {
         // Switch back to work
