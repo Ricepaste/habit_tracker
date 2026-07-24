@@ -15,7 +15,7 @@ let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
         missTime: { Rare: 0, Epic: 0 },
         inventory: [] // Array of { prize, rarity, timestamp }
     },
-    settings: { theme: 'dark', wakeLockEnabled: false, focusRewardHours: 7, focusRewardMinutes: 0 }
+    settings: { theme: 'dark', wakeLockEnabled: false, focusRewardHours: 7, focusRewardMinutes: 0, autoRecoverTimer: true, autoRecoverCap: 120 }
 };
 
 // Migration: Upgrade existing specific data without overriding old
@@ -27,6 +27,8 @@ function migrate() {
     if (!state.settings.wakeLockEnabled) state.settings.wakeLockEnabled = false;
     if (state.settings.focusRewardHours === undefined) state.settings.focusRewardHours = 7;
     if (state.settings.focusRewardMinutes === undefined) state.settings.focusRewardMinutes = 0;
+    if (state.settings.autoRecoverTimer === undefined) state.settings.autoRecoverTimer = true;
+    if (state.settings.autoRecoverCap === undefined) state.settings.autoRecoverCap = 120;
 
     // Port old HabitFlowData to V3/V4 if exists
     const oldKey = "habitFlowData";
@@ -141,7 +143,7 @@ function logHabit(id) {
 
     save();
     renderHabits();
-    showUndoBanner();
+    showToast('已紀錄成功！', { style: 'success', action: { label: '復原', onClick: undoLastLog } });
 }
 
 function undoLastLog() {
@@ -160,7 +162,7 @@ function undoLastLog() {
             }
             save();
             renderHabits();
-            hideUndoBanner();
+            hideToast();
             lastAction = null;
         }
     }
@@ -352,8 +354,8 @@ function updateFocusDisplay() {
 async function startFocusTimer() {
     if (focusInterval) return;
 
-    // Request screen wake lock if enabled
-    if (state.settings.wakeLockEnabled) {
+    // Request screen wake lock if enabled (skip during rest)
+    if (state.settings.wakeLockEnabled && focusMode !== 'rest') {
         await enableScreenProtection();
     }
 
@@ -433,7 +435,14 @@ function stopFocusTimer() {
     state._activeTimer = null;  // 正常結束，清除持久化狀態
 
     if (focusTimerMode === 'pomodoro') {
-        focusTimeLeft = focusMode === 'work' ? TOTAL_FOCUS_TIME : 5 * 60;
+        if (focusMode === 'rest') {
+            focusMode = 'work';
+            const label = document.getElementById("focus-mode-label");
+            label.innerText = "工作模式";
+            label.style.color = "var(--text-dim)";
+            document.querySelector(".timer-progress").style.stroke = "var(--primary)";
+        }
+        focusTimeLeft = TOTAL_FOCUS_TIME;
     } else {
         focusTimeLeft = 0;
     }
@@ -463,6 +472,7 @@ function completeFocusSession() {
         document.getElementById("focus-mode-label").innerText = "休息模式 (5分鐘)";
         document.getElementById("focus-mode-label").style.color = "#10b981";
         document.querySelector(".timer-progress").style.stroke = "#10b981";
+        updateFocusDisplay();
         startFocusTimer();
     } else {
         // Switch back to work
@@ -816,6 +826,18 @@ function navigate(view, el) {
         // Sync toggle UI
         const toggle = document.getElementById("toggle-wake-lock");
         if (toggle) toggle.checked = state.settings.wakeLockEnabled || false;
+        // 補登通知
+        if (window.__recoveryInfo) {
+            const info = window.__recoveryInfo;
+            const d = new Date(info.startTime);
+            const timeStr = d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+            const dateStr = d.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
+            const msg = info.elapsedMins > 0
+                ? `偵測到中斷的計時：自 ${dateStr} ${timeStr} 起已自動補登 ${info.elapsedMins} 分鐘`
+                : `偵測到中斷的計時：自 ${dateStr} ${timeStr} 起未滿 1 分鐘，未補登`;
+            showToast(msg);
+            window.__recoveryInfo = null;
+        }
     }
     if (view === 'rewards') renderRewards();
 }
@@ -1067,16 +1089,17 @@ function openFocusDetails() {
         if (dayDiff >= 0 && dayDiff < 7) dailyMins[6 - dayDiff] += log.duration;
     });
 
-    const maxMins = Math.max(...dailyMins, 1);
-    let chartHtml = `<div class="bar-grid" style="margin-top:10px; height:100px;">`;
+    // 以 120 分鐘（2 小時）為滿格基準；若該週有超過者則動態拉高
+    const scale = Math.max(...dailyMins, 120);
+    let chartHtml = `<div class="bar-grid">`;
     for (let i = 0; i < 7; i++) {
         const labelDate = new Date(todayStart - (6 - i) * ONE_DAY);
         const label = dayLabels[labelDate.getDay()];
-        const height = Math.max((dailyMins[i] / maxMins) * 100, 2);
+        const pct = dailyMins[i] > 0 ? Math.max((dailyMins[i] / scale) * 100, 3) : 0;
         chartHtml += `
             <div class="bar-wrap">
                 <div style="font-size:0.7rem; color:var(--primary); margin-bottom:4px; opacity:${dailyMins[i] > 0 ? 1 : 0}">${dailyMins[i]}m</div>
-                <div class="bar" style="height:${height}%"></div>
+                <div class="bar" style="height:${pct}%"></div>
                 <div class="bar-label">${label}</div>
             </div>`;
     }
@@ -1093,7 +1116,10 @@ function openFocusDetails() {
             return `
                 <div class="history-item">
                     <div><strong>${dateStr}</strong> <span>${timeStr}</span></div>
-                    <div style="color:var(--primary); font-weight:600;">${log.duration} 分鐘</div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="color:var(--primary); font-weight:600;">${log.duration} 分鐘</span>
+                        <button class="btn-mini-del" onclick="deleteFocusLog(${log.timestamp})">刪除</button>
+                    </div>
                 </div>`;
         }).join("");
     }
@@ -1134,13 +1160,73 @@ function openFocusDetails() {
 
         <div class="backfill-section" id="focus-details-backfill-container"></div>
 
-        <div style="margin-top:32px; border-top:1px solid var(--border); padding-top:24px;">
+        <div class="wake-lock-config" style="margin-top:24px; flex-direction:column; align-items:stretch; gap:0;">
+            <div style="margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:0.9rem; font-weight:600; color:var(--text);">自動補登中斷計時</span>
+                    <span onclick="event.stopPropagation(); alert('App 關閉或手勢返回時若計時器仍在運行，重新開啟時自動將中斷期間的專注時間補登至紀錄。僅工作模式／正向計時會補登，休息模式不會。')"
+                        style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:var(--card-light); color:var(--text-dim); font-size:0.9rem; font-weight:700; cursor:pointer; flex-shrink:0;">🛈</span>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-auto-recover" onchange="toggleAutoRecoverTimer(this.checked)"
+                        ${state.settings.autoRecoverTimer ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div id="auto-recover-cap-row" class="auto-recover-cap-row ${state.settings.autoRecoverTimer ? 'cap-expanded' : 'cap-collapsed'}">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <span style="font-size:0.8rem; color:var(--text-dim);">補登時間上限</span>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="number" id="auto-recover-cap" min="1" max="1440" value="${state.settings.autoRecoverCap || 120}"
+                            onchange="saveAutoRecoverCap()"
+                            style="width:60px; padding:6px 8px; border-radius:8px; background:var(--bg); color:white; border:1px solid var(--border); text-align:center; font-size:0.85rem;">
+                        <span style="font-size:0.75rem; color:var(--text-dim);">分鐘</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="border-top:1px solid var(--border); padding-top:24px;">
             <button class="btn-full primary-btn" style="padding:14px;" onclick="closeSheets()">確認並關閉</button>
         </div>
     `;
     openSheet("sheet-focus-details");
     // 以共用模組渲染補登表單
     renderFocusBackfillForm('focus-details-backfill-container', 'focus-details-backlog', true);
+}
+
+function toggleAutoRecoverTimer(enabled) {
+    state.settings.autoRecoverTimer = enabled;
+    save();
+    const row = document.getElementById("auto-recover-cap-row");
+    if (row) {
+        if (enabled) {
+            row.classList.remove("cap-collapsed");
+            row.classList.add("cap-expanded");
+        } else {
+            row.classList.remove("cap-expanded");
+            row.classList.add("cap-collapsed");
+        }
+    }
+}
+
+function saveAutoRecoverCap() {
+    const input = document.getElementById("auto-recover-cap");
+    if (!input) return;
+    const val = parseInt(input.value, 10);
+    if (isNaN(val) || val < 1) { input.value = state.settings.autoRecoverCap || 120; return; }
+    state.settings.autoRecoverCap = Math.min(val, 1440);
+    input.value = state.settings.autoRecoverCap;
+    save();
+}
+
+function deleteFocusLog(timestamp) {
+    if (!confirm("確定要刪除此筆專注紀錄嗎？")) return;
+    state.focusLogs = state.focusLogs.filter(l => l.timestamp !== timestamp);
+    save();
+    openFocusDetails(); // re-render
+    renderFocusSummary();
 }
 
 // 共用的補登表單渲染（獨立 sheet 與 drawer 共用）
@@ -1235,7 +1321,7 @@ function openHabitDetails(id) {
     });
 
     const max = Math.max(...counts, 1);
-    let chartHtml = `<div class="bar-grid" style="margin-top:10px; height: 100px;">`;
+    let chartHtml = `<div class="bar-grid">`;
     for (let i = 0; i < 7; i++) {
         const labelDate = new Date(todayStart - (6 - i) * ONE_DAY);
         const label = dayLabels[labelDate.getDay()];
@@ -1345,14 +1431,41 @@ function updateHabitRewardThreshold(id, value) {
     }
 }
 
-function showUndoBanner() {
-    const banner = document.getElementById("undo-banner");
-    banner.classList.add("show");
-    setTimeout(hideUndoBanner, 5000);
+let toastTimer = null;
+
+function showToast(msg, { style = 'default', action = null } = {}) {
+    const toast = document.getElementById("app-toast");
+    const fill = document.getElementById("app-toast-fill");
+    const msgEl = document.getElementById("app-toast-msg");
+    const btn = document.getElementById("app-toast-btn");
+    if (!toast || !fill || !msgEl || !btn) return;
+
+    if (toastTimer) clearTimeout(toastTimer);
+    toast.classList.remove("show", "success");
+    fill.classList.remove("counting");
+    void fill.offsetWidth; // reflow reset
+
+    msgEl.innerText = msg;
+    if (style === 'success') toast.classList.add("success");
+
+    if (action) {
+        btn.style.display = "block";
+        btn.innerText = action.label;
+        btn.onclick = () => { action.onClick(); hideToast(); };
+    } else {
+        btn.style.display = "none";
+    }
+
+    toast.classList.add("show");
+    fill.classList.add("counting");
+
+    toastTimer = setTimeout(() => hideToast(), 5000);
 }
 
-function hideUndoBanner() {
-    document.getElementById("undo-banner").classList.remove("show");
+function hideToast() {
+    const toast = document.getElementById("app-toast");
+    if (toastTimer) clearTimeout(toastTimer);
+    if (toast) toast.classList.remove("show");
 }
 
 // Tools for data safety
@@ -1408,9 +1521,11 @@ function validateAndImportData(jsonString, sourceLabel) {
         if (typeof imported.rewards.lifetimeFocusTickets !== 'number') imported.rewards.lifetimeFocusTickets = 0;
     }
     if (!imported.settings || typeof imported.settings !== 'object') {
-        imported.settings = { theme: 'dark', wakeLockEnabled: false };
+        imported.settings = { theme: 'dark', wakeLockEnabled: false, autoRecoverTimer: true, autoRecoverCap: 120 };
     } else {
         if (imported.settings.wakeLockEnabled === undefined) imported.settings.wakeLockEnabled = false;
+        if (imported.settings.autoRecoverTimer === undefined) imported.settings.autoRecoverTimer = true;
+        if (imported.settings.autoRecoverCap === undefined) imported.settings.autoRecoverCap = 120;
     }
 
     // 確保每個 habit 都有 rewardSettings
@@ -1560,18 +1675,22 @@ function forceUpdate() {
 
     migrate();
 
-    // 復原中斷的計時（手勢返回導致頁面卸載時）
-    if (state._activeTimer && state._activeTimer.startTime) {
+    // 復原中斷的計時（手勢返回導致頁面卸載時），依設定開關決定是否啟用
+    window.__recoveryInfo = null;
+    if (state.settings.autoRecoverTimer && state._activeTimer && state._activeTimer.startTime) {
         const at = state._activeTimer;
+        const now = Date.now();
+        const elapsedSec = Math.round((now - at.startTime) / 1000);
+        const rawMins = Math.floor(elapsedSec / 60);
+        const cap = state.settings.autoRecoverCap || 120;
+        const elapsedMins = Math.min(rawMins, cap);
         if (at.mode === 'stopwatch' || at.focusMode === 'work') {
-            const now = Date.now();
-            const elapsedSec = Math.round((now - at.startTime) / 1000);
-            const elapsedMins = Math.floor(elapsedSec / 60);
             if (elapsedMins > 0) {
                 state.focusLogs.push({ timestamp: now, duration: elapsedMins });
                 checkFocusRewards();
                 console.log(`復原中斷計時：已記錄 ${elapsedMins} 分鐘`);
             }
+            window.__recoveryInfo = { startTime: at.startTime, elapsedMins };
         }
         state._activeTimer = null;
         save();

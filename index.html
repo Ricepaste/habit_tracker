@@ -210,11 +210,13 @@
         </a>
     </nav>
 
-    <!-- UI Components: Undo Banner -->
-    <div id="undo-banner" class="undo-banner">
-        <span>已紀錄成功！</span>
-        <button onclick="undoLastLog()"
-            style="background: white; color: #10b981; border: none; padding: 4px 12px; border-radius: 8px; font-weight: 700;">復原</button>
+    <!-- Unified Toast Notification -->
+    <div id="app-toast" class="app-toast">
+        <div class="app-toast-body">
+            <span id="app-toast-msg"></span>
+            <button id="app-toast-btn" class="app-toast-btn" style="display:none;"></button>
+        </div>
+        <div class="app-toast-bar"><div id="app-toast-fill" class="app-toast-fill"></div></div>
     </div>
 
     <!-- Modals (Sheets) -->
