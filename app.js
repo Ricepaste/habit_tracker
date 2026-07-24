@@ -143,7 +143,7 @@ function logHabit(id) {
 
     save();
     renderHabits();
-    showUndoBanner();
+    showToast('已紀錄成功！', { style: 'success', action: { label: '復原', onClick: undoLastLog } });
 }
 
 function undoLastLog() {
@@ -162,7 +162,7 @@ function undoLastLog() {
             }
             save();
             renderHabits();
-            hideUndoBanner();
+            hideToast();
             lastAction = null;
         }
     }
@@ -826,6 +826,18 @@ function navigate(view, el) {
         // Sync toggle UI
         const toggle = document.getElementById("toggle-wake-lock");
         if (toggle) toggle.checked = state.settings.wakeLockEnabled || false;
+        // 補登通知
+        if (window.__recoveryInfo) {
+            const info = window.__recoveryInfo;
+            const d = new Date(info.startTime);
+            const timeStr = d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+            const dateStr = d.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
+            const msg = info.elapsedMins > 0
+                ? `偵測到中斷的計時：自 ${dateStr} ${timeStr} 起已自動補登 ${info.elapsedMins} 分鐘`
+                : `偵測到中斷的計時：自 ${dateStr} ${timeStr} 起未滿 1 分鐘，未補登`;
+            showToast(msg);
+            window.__recoveryInfo = null;
+        }
     }
     if (view === 'rewards') renderRewards();
 }
@@ -1418,14 +1430,41 @@ function updateHabitRewardThreshold(id, value) {
     }
 }
 
-function showUndoBanner() {
-    const banner = document.getElementById("undo-banner");
-    banner.classList.add("show");
-    setTimeout(hideUndoBanner, 5000);
+let toastTimer = null;
+
+function showToast(msg, { style = 'default', action = null } = {}) {
+    const toast = document.getElementById("app-toast");
+    const fill = document.getElementById("app-toast-fill");
+    const msgEl = document.getElementById("app-toast-msg");
+    const btn = document.getElementById("app-toast-btn");
+    if (!toast || !fill || !msgEl || !btn) return;
+
+    if (toastTimer) clearTimeout(toastTimer);
+    toast.classList.remove("show", "success");
+    fill.classList.remove("counting");
+    void fill.offsetWidth; // reflow reset
+
+    msgEl.innerText = msg;
+    if (style === 'success') toast.classList.add("success");
+
+    if (action) {
+        btn.style.display = "block";
+        btn.innerText = action.label;
+        btn.onclick = () => { action.onClick(); hideToast(); };
+    } else {
+        btn.style.display = "none";
+    }
+
+    toast.classList.add("show");
+    fill.classList.add("counting");
+
+    toastTimer = setTimeout(() => hideToast(), 5000);
 }
 
-function hideUndoBanner() {
-    document.getElementById("undo-banner").classList.remove("show");
+function hideToast() {
+    const toast = document.getElementById("app-toast");
+    if (toastTimer) clearTimeout(toastTimer);
+    if (toast) toast.classList.remove("show");
 }
 
 // Tools for data safety
@@ -1636,19 +1675,21 @@ function forceUpdate() {
     migrate();
 
     // 復原中斷的計時（手勢返回導致頁面卸載時），依設定開關決定是否啟用
+    window.__recoveryInfo = null;
     if (state.settings.autoRecoverTimer && state._activeTimer && state._activeTimer.startTime) {
         const at = state._activeTimer;
+        const now = Date.now();
+        const elapsedSec = Math.round((now - at.startTime) / 1000);
+        const rawMins = Math.floor(elapsedSec / 60);
+        const cap = state.settings.autoRecoverCap || 120;
+        const elapsedMins = Math.min(rawMins, cap);
         if (at.mode === 'stopwatch' || at.focusMode === 'work') {
-            const now = Date.now();
-            const elapsedSec = Math.round((now - at.startTime) / 1000);
-            const rawMins = Math.floor(elapsedSec / 60);
-            const cap = state.settings.autoRecoverCap || 120;
-            const elapsedMins = Math.min(rawMins, cap);
             if (elapsedMins > 0) {
                 state.focusLogs.push({ timestamp: now, duration: elapsedMins });
                 checkFocusRewards();
                 console.log(`復原中斷計時：已記錄 ${elapsedMins} 分鐘`);
             }
+            window.__recoveryInfo = { startTime: at.startTime, elapsedMins };
         }
         state._activeTimer = null;
         save();
