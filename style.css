@@ -268,11 +268,10 @@ header {
 .bar-grid {
   display: flex;
   align-items: flex-end;
-  height: 160px;
+  height: 112px;
   /* Increased height for better visibility */
   gap: 12px;
-  margin-top: 30px;
-  padding-bottom: 20px;
+  margin-top: 4px;
 }
 
 .bar-wrap {
@@ -284,7 +283,7 @@ header {
   align-items: center;
   height: 100%;
   /* Anchor for percentage height */
-  gap: 8px;
+  gap: 2px;
 }
 
 .bar {

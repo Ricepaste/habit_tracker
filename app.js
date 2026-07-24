@@ -1089,16 +1089,17 @@ function openFocusDetails() {
         if (dayDiff >= 0 && dayDiff < 7) dailyMins[6 - dayDiff] += log.duration;
     });
 
-    const maxMins = Math.max(...dailyMins, 1);
-    let chartHtml = `<div class="bar-grid" style="margin-top:10px; height:100px;">`;
+    // 以 120 分鐘（2 小時）為滿格基準；若該週有超過者則動態拉高
+    const scale = Math.max(...dailyMins, 120);
+    let chartHtml = `<div class="bar-grid">`;
     for (let i = 0; i < 7; i++) {
         const labelDate = new Date(todayStart - (6 - i) * ONE_DAY);
         const label = dayLabels[labelDate.getDay()];
-        const height = Math.max((dailyMins[i] / maxMins) * 100, 2);
+        const pct = dailyMins[i] > 0 ? Math.max((dailyMins[i] / scale) * 100, 3) : 0;
         chartHtml += `
             <div class="bar-wrap">
                 <div style="font-size:0.7rem; color:var(--primary); margin-bottom:4px; opacity:${dailyMins[i] > 0 ? 1 : 0}">${dailyMins[i]}m</div>
-                <div class="bar" style="height:${height}%"></div>
+                <div class="bar" style="height:${pct}%"></div>
                 <div class="bar-label">${label}</div>
             </div>`;
     }
@@ -1320,7 +1321,7 @@ function openHabitDetails(id) {
     });
 
     const max = Math.max(...counts, 1);
-    let chartHtml = `<div class="bar-grid" style="margin-top:10px; height: 100px;">`;
+    let chartHtml = `<div class="bar-grid">`;
     for (let i = 0; i < 7; i++) {
         const labelDate = new Date(todayStart - (6 - i) * ONE_DAY);
         const label = dayLabels[labelDate.getDay()];
