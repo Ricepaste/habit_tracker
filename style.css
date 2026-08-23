@@ -211,10 +211,13 @@ header {
   height: 100%;
   width: 100%;
   background: var(--primary);
-  transition: width 5s linear;
 }
 .app-toast-fill.counting {
-  width: 0%;
+  animation: toast-countdown 5s linear forwards;
+}
+@keyframes toast-countdown {
+  from { width: 100%; }
+  to { width: 0%; }
 }
 
 /* Custom Bottom Nav */

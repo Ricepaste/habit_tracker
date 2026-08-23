@@ -1223,7 +1223,8 @@ function saveAutoRecoverCap() {
 
 function deleteFocusLog(timestamp) {
     if (!confirm("確定要刪除此筆專注紀錄嗎？")) return;
-    state.focusLogs = state.focusLogs.filter(l => l.timestamp !== timestamp);
+    const idx = state.focusLogs.findIndex(l => l.timestamp === timestamp);
+    if (idx !== -1) state.focusLogs.splice(idx, 1);
     save();
     openFocusDetails(); // re-render
     renderFocusSummary();
@@ -1464,7 +1465,10 @@ function showToast(msg, { style = 'default', action = null } = {}) {
 
 function hideToast() {
     const toast = document.getElementById("app-toast");
+    const fill = document.getElementById("app-toast-fill");
     if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = null;
+    if (fill) fill.classList.remove("counting");
     if (toast) toast.classList.remove("show");
 }
 
