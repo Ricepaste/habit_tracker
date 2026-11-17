@@ -230,6 +230,14 @@
             <label>項目名稱</label>
             <input type="text" id="input-habit-name" placeholder="例如：每日閱讀、深蹲..." autocomplete="off">
         </div>
+        <div class="input-group">
+            <label>每週目標次數</label>
+            <input type="number" id="input-habit-weekly-goal" min="1" max="100" value="1">
+        </div>
+        <div class="input-group">
+            <label>習慣描述／子目標（可放置連結）</label>
+            <textarea id="input-habit-description" rows="4" placeholder="例如：完成 30 分鐘閱讀&#10;https://example.com"></textarea>
+        </div>
         <button class="btn-full btn-log" onclick="createNewHabit()">建立成長項目</button>
     </div>
 

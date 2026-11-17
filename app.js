@@ -54,6 +54,8 @@ function migrate() {
                     return {
                         id: h.id || Date.now() + Math.random(),
                         name: h.name,
+                        description: h.description || "",
+                        weeklyGoal: h.weeklyGoal || 1,
                         logs: timestamps, // Now an array of timestamps!
                         createdAt: h.createdAt || new Date().toISOString(),
                         rewardSettings: h.rewardSettings || { enabled: false, threshold: 10 }
@@ -72,6 +74,14 @@ function migrate() {
     // Ensure all existing habits have rewardSettings + card system fields
     let modified = false;
     state.habits.forEach(h => {
+        if (h.weeklyGoal === undefined) {
+            h.weeklyGoal = 1;
+            modified = true;
+        }
+        if (h.description === undefined) {
+            h.description = "";
+            modified = true;
+        }
         if (!h.rewardSettings) {
             h.rewardSettings = { enabled: false, threshold: 10 };
             modified = true;
@@ -171,16 +181,23 @@ function undoLastLog() {
 function createNewHabit() {
     const name = document.getElementById("input-habit-name").value.trim();
     if (!name) return;
+    const weeklyGoalInput = parseInt(document.getElementById("input-habit-weekly-goal").value, 10);
+    const weeklyGoal = Math.min(100, Math.max(1, isNaN(weeklyGoalInput) ? 1 : weeklyGoalInput));
+    const description = document.getElementById("input-habit-description").value.trim();
 
     state.habits.push({
         id: Date.now(),
         name: name,
+        description: description,
+        weeklyGoal: weeklyGoal,
         logs: [],
         createdAt: new Date().toISOString(),
         rewardSettings: { enabled: false, threshold: 10 }
     });
 
     document.getElementById("input-habit-name").value = "";
+    document.getElementById("input-habit-weekly-goal").value = "1";
+    document.getElementById("input-habit-description").value = "";
     save();
     closeSheets();
     renderHabits();
@@ -843,6 +860,30 @@ function navigate(view, el) {
 }
 
 // 4. Rendering
+function getCurrentWeekStart() {
+    const now = new Date();
+    const day = now.getDay();
+    const daysFromMonday = day === 0 ? 6 : day - 1;
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysFromMonday).getTime();
+}
+
+function getWeeklyHabitCount(habit) {
+    const weekStart = getCurrentWeekStart();
+    return habit.logs.filter(ts => ts >= weekStart && ts <= Date.now()).length;
+}
+
+function escapeHtml(value) {
+    return String(value || "").replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[char]));
+}
+
+function formatHabitDescription(description) {
+    return escapeHtml(description)
+        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+        .replace(/\n/g, '<br>');
+}
+
 function renderHabits() {
     const grid = document.getElementById("habit-grid");
     if (!grid) return;
@@ -859,6 +900,8 @@ function renderHabits() {
     state.habits.forEach(h => {
         const todayCount = h.logs.filter(ts => ts >= todayStart && ts <= todayEnd).length;
         const totalCount = h.logs.length;
+        const weeklyGoal = h.weeklyGoal || 0;
+        const weeklyCount = getWeeklyHabitCount(h);
 
         // Card-based reward progress display
         let rewardProgressHtml = '';
@@ -874,8 +917,9 @@ function renderHabits() {
         card.innerHTML = `
             <div class="habit-info" onclick="openHabitDetails(${h.id})">
                 <div>
-                    <div class="habit-name">${h.name}</div>
+                    <div class="habit-name">${escapeHtml(h.name)}</div>
                     <div class="habit-stats-mini">今日累積 ${todayCount} | 總計 ${totalCount}</div>
+                    ${weeklyGoal > 0 ? `<div class="weekly-goal ${weeklyCount >= weeklyGoal ? 'complete' : ''}">本週 ${weeklyCount} / ${weeklyGoal} ${weeklyCount >= weeklyGoal ? '✓' : ''}</div>` : ''}
                     ${rewardProgressHtml}
                 </div>
                 <div style="font-size: 1.2rem;">➔</div>
@@ -904,28 +948,30 @@ function renderAnalytics() {
     state.habits.forEach(h => {
         const hCard = document.createElement("div");
         hCard.className = "chart-card";
-        const total = h.logs.length;
-
-        // Calculate milestones (e.g., every 50 logs is a level)
-        const progress = Math.min((total % 50) / 50 * 100, 100);
-        const level = Math.floor(total / 50) + 1;
+        const weeklyGoal = h.weeklyGoal || 0;
+        const weeklyCount = getWeeklyHabitCount(h);
+        const weeklyProgress = weeklyGoal > 0 ? Math.min((weeklyCount / weeklyGoal) * 100, 100) : 0;
+        const weeklyStatus = weeklyGoal > 0
+            ? `${weeklyCount} / ${weeklyGoal} 次${weeklyCount >= weeklyGoal ? ' · 已達成' : ''}`
+            : '尚未設定';
 
         hCard.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <span style="font-weight:700;">${h.name}</span>
-                <span style="color:var(--primary); font-weight:800; font-size:1.1rem;">${total} <small style="font-size:0.7rem; opacity:0.6;">次成就</small></span>
+                <span style="font-weight:700;">${escapeHtml(h.name)}</span>
+                <span style="color:var(--primary); font-weight:800; font-size:1.1rem;">本週進度</span>
             </div>
             
             <div style="margin-bottom:16px;">
                 <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-dim); margin-bottom:4px;">
-                    <span>階段 ${level} 進度</span>
-                    <span>${total % 50} / 50</span>
+                    <span>${weeklyGoal > 0 ? '每週目標' : '每週目標尚未設定'}</span>
+                    <span>${weeklyStatus}</span>
                 </div>
                 <div style="height:6px; background:var(--card-light); border-radius:3px; overflow:hidden;">
-                    <div style="height:100%; width:${progress}%; background:linear-gradient(to right, var(--primary), var(--secondary)); transition: width 1s ease;"></div>
+                    <div style="height:100%; width:${weeklyProgress}%; background:linear-gradient(to right, var(--primary), var(--secondary)); transition: width 1s ease;"></div>
                 </div>
             </div>
 
+            ${h.description ? `<div class="habit-description">${formatHabitDescription(h.description)}</div>` : ''}
             <div style="display:flex; flex-wrap:wrap; gap:4px;">
                 ${renderMiniHeatmap(h.logs)}
             </div>
@@ -1345,11 +1391,26 @@ function openHabitDetails(id) {
         
         <div class="input-group">
             <label>項目名稱</label>
-            <input type="text" value="${h.name}" onchange="updateHabitName(${h.id}, this.value)">
+            <input type="text" value="${escapeHtml(h.name)}" onchange="updateHabitName(${h.id}, this.value)">
+        </div>
+
+        <div class="input-group">
+            <label>每週目標次數</label>
+            <input type="number" value="${h.weeklyGoal || 1}" min="1" max="100"
+                onchange="updateHabitWeeklyGoal(${h.id}, this.value)">
+        </div>
+
+        <div class="input-group">
+            <label>習慣描述／子目標（可放置連結）</label>
+            <textarea rows="4" onchange="updateHabitDescription(${h.id}, this.value)">${escapeHtml(h.description)}</textarea>
         </div>
 
         <div class="backfill-section" style="margin-top:0;">
             <label style="font-size: 0.8rem; font-weight:700; color:var(--text-dim);">📊 專屬週成長趨勢</label>
+            <div class="weekly-goal-summary ${h.weeklyGoal && getWeeklyHabitCount(h) >= h.weeklyGoal ? 'complete' : ''}">
+                本週 ${getWeeklyHabitCount(h)} / ${h.weeklyGoal || 0} 次
+                ${h.weeklyGoal && getWeeklyHabitCount(h) >= h.weeklyGoal ? ' · 已達成' : ''}
+            </div>
             ${chartHtml}
         </div>
 
@@ -1400,6 +1461,25 @@ function updateHabitName(id, newName) {
         save();
         renderHabits();
     }
+}
+
+function updateHabitWeeklyGoal(id, value) {
+    const h = state.habits.find(x => x.id === id);
+    if (!h) return;
+    const goal = parseInt(value, 10);
+    h.weeklyGoal = Math.min(100, Math.max(1, isNaN(goal) ? 1 : goal));
+    save();
+    renderHabits();
+    openHabitDetails(id);
+}
+
+function updateHabitDescription(id, description) {
+    const h = state.habits.find(x => x.id === id);
+    if (!h) return;
+    h.description = description.trim();
+    save();
+    renderHabits();
+    openHabitDetails(id);
 }
 
 function toggleHabitReward(id, enabled) {
