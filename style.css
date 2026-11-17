@@ -103,6 +103,37 @@ header {
   margin-top: 4px;
 }
 
+.weekly-goal {
+  font-size: 0.75rem;
+  color: var(--primary);
+  margin-top: 6px;
+  font-weight: 600;
+}
+
+.weekly-goal.complete,
+.weekly-goal-summary.complete {
+  color: #10b981;
+}
+
+.weekly-goal-summary {
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin: 8px 0 12px;
+}
+
+.habit-description {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.habit-description a {
+  color: var(--primary-light);
+}
+
 /* Action Button - Deliberate Interaction */
 .action-area {
   display: flex;
@@ -389,6 +420,28 @@ input[type="text"] {
   border: 1px solid var(--border);
   padding: 16px;
   border-radius: 16px;
+  color: white;
+  font-size: 1rem;
+}
+
+textarea {
+  width: 100%;
+  background: var(--card-light);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 12px;
+  color: white;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+input[type="number"] {
+  width: 100%;
+  background: var(--card-light);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 12px;
   color: white;
   font-size: 1rem;
 }
